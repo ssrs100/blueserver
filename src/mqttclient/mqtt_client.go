@@ -22,7 +22,7 @@ var (
 
 const (
 	HttpPort = "8080"
-	ClientId = "blueserver1"
+	ClientId = "blueserver"
 )
 
 // This NoOpStore type implements the go-mqtt/Store interface, which
