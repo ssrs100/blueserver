@@ -6,39 +6,14 @@ import (
 	"errors"
 	"github.com/julienschmidt/httprouter"
 	"io/ioutil"
+	"model"
 	"net/http"
 )
-
-type ComponentDetail struct {
-	ComponentId   string `json:"component_id"`
-	ComponentName string `json:"component_name"`
-	AdvInterval   int    `json:"adv_interval"`
-	TxPower       int    `json:"tx_power"`
-	Slot          int    `json:"slot"`
-	UpdateStatus  int    `json:"update_status"`
-	Data          string `json:"data"`
-	UpdateData    string `json:"update_data"`
-	NewPassword   string `json:"new_password"`
-}
 
 const (
 	UpdateSuccess = iota
 	Updating
 )
-
-func (b *ComponentDetail) dbObjectTrans(component bluedb.ComponentDetail) ComponentDetail {
-	b1 := ComponentDetail{
-		ComponentId:   component.Id,
-		ComponentName: component.ComponentName,
-		AdvInterval:   component.AdvInterval,
-		TxPower:       component.TxPower,
-		Slot:          component.Slot,
-		UpdateStatus:  component.UpdateStatus,
-		Data:          component.Data,
-		UpdateData:    component.UpdateData,
-	}
-	return b1
-}
 
 func UpdateComponentDetail(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	body, err := ioutil.ReadAll(req.Body)
@@ -49,7 +24,7 @@ func UpdateComponentDetail(w http.ResponseWriter, req *http.Request, ps httprout
 	}
 	defer req.Body.Close()
 
-	var detailReq = &ComponentDetail{}
+	var detailReq = &model.ComponentDetail{}
 	err = json.Unmarshal(body, detailReq)
 	if err != nil {
 		log.Error("Invalid body. err:%s", err.Error())
@@ -113,10 +88,10 @@ func GetComponentDetail(w http.ResponseWriter, req *http.Request, ps httprouter.
 		return
 	}
 
-	var b = ComponentDetail{}
+	var b = model.ComponentDetail{}
 	w.WriteHeader(http.StatusOK)
 	w.Header().Add("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(b.dbObjectTrans(*com))
+	json.NewEncoder(w).Encode(b.DbObjectTrans(*com))
 
 }
 

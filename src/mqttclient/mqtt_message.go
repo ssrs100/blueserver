@@ -2,9 +2,9 @@ package mqttclient
 
 import (
 	"bluedb"
-	"controller"
 	"encoding/json"
 	"github.com/satori/go.uuid"
+	"model"
 	MQTT "pahomqtt"
 	"strconv"
 	"strings"
@@ -126,7 +126,7 @@ func actionResponse(client MQTT.Client, msg MQTT.Message) {
 		}
 		// status 1 indicates success
 		if st == 1 {
-			cd := &controller.ComponentDetail{}
+			cd := &model.ComponentDetail{}
 			updateData := comDetail.UpdateData
 			if err := json.Unmarshal([]byte(updateData), cd); err != nil {
 				log.Error("Unmarshal failed, updateData:%s", updateData)
