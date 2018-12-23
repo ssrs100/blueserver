@@ -17,6 +17,7 @@ import (
 type Component struct {
 	Id                string `json:"id"`
 	MacAddr           string `json:"mac_addr"`
+	GWMacAddr         string `json:"gw_mac_addr"`
 	Type              string `json:"type"`
 	ProjectId         string `json:"project_id"`
 	Name              string `json:"name"`
@@ -27,6 +28,7 @@ func (b *Component) dbObjectTrans(component bluedb.Component) Component {
 	b1 := Component{
 		Id:                component.Id,
 		MacAddr:           component.MacAddr,
+		GWMacAddr:         component.GwMacAddr,
 		Type:              component.Type,
 		ProjectId:         component.ProjectId,
 		Name:              component.Name,
@@ -78,7 +80,7 @@ func RegisterComponent(w http.ResponseWriter, req *http.Request, ps httprouter.P
 		return
 	}
 
-	if len(componentReq.Name) <= 0 || len(componentReq.MacAddr) < 10 || len(componentReq.ComponentPassword) <= 0 {
+	if len(componentReq.Name) <= 0 || len(componentReq.MacAddr) < 10 {
 		strErr := fmt.Sprintf("Invalid name(%s) or mac(%s) or password(%s).",
 			componentReq.Name, componentReq.MacAddr, componentReq.ComponentPassword)
 		log.Error(strErr)
@@ -94,7 +96,7 @@ func RegisterComponent(w http.ResponseWriter, req *http.Request, ps httprouter.P
 	if len(components) > 0 {
 		strErr := fmt.Sprintf("Component(%s) has been registed.", componentReq.MacAddr)
 		log.Error(strErr)
-		DefaultHandler.ServeHTTP(w, req, errors.New(strErr), http.StatusBadRequest)
+		DefaultHandler.ServeHTTP(w, req, errors.New(strErr), http.StatusConflict)
 		return
 	}
 
@@ -107,6 +109,7 @@ func RegisterComponent(w http.ResponseWriter, req *http.Request, ps httprouter.P
 	componentDb := bluedb.Component{
 		Id:                "",
 		MacAddr:           componentReq.MacAddr,
+		GwMacAddr:         componentReq.GWMacAddr,
 		Type:              componentReq.Type,
 		ProjectId:         projectId,
 		Name:              componentReq.Name,

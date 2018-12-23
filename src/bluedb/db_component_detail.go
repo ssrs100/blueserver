@@ -7,13 +7,9 @@ import (
 )
 
 type ComponentDetail struct {
-	Id            string `orm:"size(64);pk"`
-	ComponentId   string `orm:"size(64)"`
-	ComponentName string `orm:"size(64)"`
-	AdvInterval   int    `orm:"int"`
-	TxPower       int    `orm:"int"`
-	Slot          int    `orm:"int"`
-	UpdateStatus  int    `orm:"int"`
+	Id            string `orm:"size(64);"`
+	ComponentId   string `orm:"size(64);pk"`
+	UpdateStatus  int
 	Data          string `orm:"type(text);null"`
 	UpdateData    string `orm:"type(text);null"`
 }
@@ -48,8 +44,7 @@ func DeleteComponentDetail(id string) error {
 
 func UpdateComponentDetail(detail ComponentDetail) error {
 	o := orm.NewOrm()
-	if _, err := o.Update(&detail, "component_name", "adv_interval",
-		"tx_power", "slot", "update_status", "data", "update_data"); err != nil {
+	if _, err := o.Update(&detail, "update_status", "data", "update_data"); err != nil {
 		log.Error("update detail(%s) fail, err:%s", detail.Id, err.Error())
 		return err
 	}

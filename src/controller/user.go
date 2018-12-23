@@ -203,7 +203,7 @@ func CreateUser(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 
 	//notify mqtt
 	if mqttclient.Client != nil {
-		mqttclient.Client.NotifyUserAdd(name, passwd)
+		mqttclient.Client.NotifyUserAdd(name, passwd, id)
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Header().Add("Content-Type", "application/json")

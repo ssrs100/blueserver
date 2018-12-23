@@ -589,9 +589,9 @@ func (c *client) Publish(topic string, qos byte, retained bool, payload interfac
 	}
 	persistOutbound(c.persist, pub)
 	if c.connectionStatus() == reconnecting {
-		log.Debug("storing publish message (reconnecting), topic:", topic)
+		log.Debug("storing publish message (reconnecting), topic:%s", topic)
 	} else {
-		log.Debug("sending publish message, topic:", topic)
+		log.Debug("sending publish message, topic:%s", topic)
 		c.obound <- &PacketAndToken{p: pub, t: token}
 	}
 	return token

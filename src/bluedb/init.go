@@ -12,6 +12,7 @@ func InitDB(host string, port int) error {
 	orm.RegisterModel(new(Attachment))
 	orm.RegisterModel(new(Component))
 	orm.RegisterModel(new(Collection))
+	orm.RegisterModel(new(ComponentDetail))
 
 	dsn := fmt.Sprintf("blue:blue@123@tcp(%s:%d)/blue?charset=utf8", host, port)
 	// set default database

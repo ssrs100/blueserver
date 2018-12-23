@@ -8,7 +8,7 @@ import (
 type Collection struct {
 	Id          string    `orm:"size(64);pk"`
 	ComponentId string    `orm:"size(64)"`
-	Rssi        int       `orm:"int"`
+	Rssi        int
 	Data        string    `orm:"type(text);null"`
 	CreateAt    time.Time `orm:"auto_now_add;type(datetime)"`
 }

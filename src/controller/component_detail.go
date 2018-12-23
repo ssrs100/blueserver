@@ -3,17 +3,21 @@ package controller
 import (
 	"bluedb"
 	"encoding/json"
-	"errors"
 	"github.com/julienschmidt/httprouter"
 	"io/ioutil"
 	"model"
+	"mqttclient"
 	"net/http"
+	"utils"
 )
 
-const (
-	UpdateSuccess = iota
-	Updating
-)
+type ComponentModifyMsg struct {
+	MsgType    string `json:"msg"`
+	DstMacType int    `json:"dmac_type"`
+	DstMac     string `json:"dmac"`
+	Password   string `json:"passwd"`
+	Data       string `json:"data"`
+}
 
 func UpdateComponentDetail(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	body, err := ioutil.ReadAll(req.Body)
@@ -29,15 +33,6 @@ func UpdateComponentDetail(w http.ResponseWriter, req *http.Request, ps httprout
 	if err != nil {
 		log.Error("Invalid body. err:%s", err.Error())
 		DefaultHandler.ServeHTTP(w, req, err, http.StatusBadRequest)
-		return
-	}
-	// check param scope
-	if detailReq.AdvInterval < 100 || detailReq.AdvInterval > 10000 ||
-		detailReq.TxPower < -128 || detailReq.TxPower > 127 ||
-		detailReq.Slot < 0 || detailReq.Slot > 9 {
-		strErr := "invalid params scope, check adv_interval(100, 10000), tx_power(-128,127), slot(0,9)"
-		log.Error(strErr)
-		DefaultHandler.ServeHTTP(w, req, errors.New(strErr), http.StatusBadRequest)
 		return
 	}
 
@@ -57,22 +52,54 @@ func UpdateComponentDetail(w http.ResponseWriter, req *http.Request, ps httprout
 		}
 	}
 
-	if d.UpdateStatus == Updating {
-		strErr := "update failed, current status is updating."
-		log.Error(strErr)
-		DefaultHandler.ServeHTTP(w, req, errors.New(strErr), http.StatusInternalServerError)
-		return
-	}
+	//if d.UpdateStatus == model.Updating {
+	//	strErr := "update failed, current status is updating."
+	//	log.Error(strErr)
+	//	DefaultHandler.ServeHTTP(w, req, errors.New(strErr), http.StatusInternalServerError)
+	//	return
+	//}
 
 	createDetail := bluedb.ComponentDetail{
 		Id:           d.Id,
-		UpdateStatus: Updating,
-		UpdateData:   string(body),
+		ComponentId:  componentId,
+		UpdateStatus: model.Updating,
+		UpdateData:   detailReq.UpdateData,
 	}
 	if err = bluedb.UpdateDetailUpdateDataAndStatus(createDetail); err != nil {
 		log.Error("UpdateDetailUpdateDataAndStatus failed. err:%s", err.Error())
 		DefaultHandler.ServeHTTP(w, req, err, http.StatusInternalServerError)
 		return
+	}
+
+	//notify mqtt
+	if mqttclient.Client != nil {
+		c, err := bluedb.QueryComponentById(componentId)
+		if err != nil {
+			log.Error("QueryComponentById failed. err:%s", err.Error())
+		}
+		var msg ComponentModifyMsg
+		var macType int
+		var msgType string
+		if c.Type == utils.ComponentGatewayType {
+			macType = 1
+			msgType = "config_gateway_req"
+		} else {
+			macType = 0
+			msgType = "config_beacon_req"
+		}
+		msg.Data = detailReq.UpdateData
+		msg.Password = detailReq.Password
+		msg.DstMac = c.MacAddr
+		msg.DstMacType = macType
+		msg.MsgType = msgType
+		body, err := json.Marshal(msg)
+		if err != nil {
+			log.Error("marshal err:%s", err.Error())
+		}
+		log.Debug("publish body:%s", string(body))
+		mqttclient.Client.PublishModify(c.GwMacAddr, body)
+	} else {
+		log.Error("mqtt client is nil, not notify")
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -106,7 +133,8 @@ func CancelUpdateDetail(w http.ResponseWriter, req *http.Request, ps httprouter.
 
 	cancelDetail := bluedb.ComponentDetail{
 		Id:           com.Id,
-		UpdateStatus: UpdateSuccess,
+		ComponentId:  id,
+		UpdateStatus: model.Cancelled,
 		UpdateData:   "",
 	}
 
@@ -121,24 +149,13 @@ func CancelUpdateDetail(w http.ResponseWriter, req *http.Request, ps httprouter.
 
 func SyncComponentDetail(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	id := ps.ByName("componentId")
-	com, err := bluedb.QueryComponentDetailByComponentId(id)
+	_, err := bluedb.QueryComponentDetailByComponentId(id)
 	if err != nil {
 		log.Error("sync component(%s) detail failed: %v", id, err.Error())
 		DefaultHandler.ServeHTTP(w, req, err, http.StatusBadRequest)
 		return
 	}
-
-	cancelDetail := bluedb.ComponentDetail{
-		Id:           com.Id,
-		UpdateStatus: UpdateSuccess,
-		UpdateData:   "",
-	}
-
-	if err = bluedb.UpdateDetailUpdateDataAndStatus(cancelDetail); err != nil {
-		log.Error("UpdateDetailUpdateDataAndStatus failed. err:%s", err.Error())
-		DefaultHandler.ServeHTTP(w, req, err, http.StatusInternalServerError)
-		return
-	}
+	//TODO
 
 	w.WriteHeader(http.StatusOK)
 }

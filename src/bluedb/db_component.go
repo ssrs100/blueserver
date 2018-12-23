@@ -10,6 +10,7 @@ import (
 type Component struct {
 	Id                string    `orm:"size(64);pk"`
 	MacAddr           string    `orm:"size(64)"`
+	GwMacAddr         string    `orm:"size(64)"`
 	Type              string    `orm:"size(64)"`
 	ProjectId         string    `orm:"size(64)"`
 	Name              string    `orm:"size(64);null"`
@@ -28,7 +29,8 @@ func CreateComponent(component Component) string {
 	// insert
 	_, err = o.Insert(&component)
 	if err != nil {
-		log.Error("create component fail.component: %v", component)
+		log.Error("create component fail.component: %v", err.Error())
+		return ""
 	}
 	log.Info("create component id: %v", component.Id)
 	return component.Id
@@ -74,6 +76,10 @@ func QueryComponents(params map[string]interface{}) []Component {
 
 	if macAddr, ok := params["mac_addr"]; ok {
 		qs = qs.Filter("mac_addr", macAddr)
+	}
+
+	if macAddr, ok := params["gw_mac_addr"]; ok {
+		qs = qs.Filter("gw_mac_addr", macAddr)
 	}
 
 	if offset, ok := params["offset"]; ok {

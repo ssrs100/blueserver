@@ -44,7 +44,8 @@ create table component
   name               varchar(64) not null,
   type               varchar(64) not null,
   mac_addr           varchar(64) not null,
-  component_password varchar(64) not null,
+  gw_mac_addr        varchar(64) not null,
+  component_password varchar(64),
   create_at          datetime,
   primary key (id)
 );
@@ -52,15 +53,11 @@ create table component
 drop table if exists component_detail;
 create table component_detail
 (
-  id             varchar(64) not null,
-  component_id   varchar(64) not null,
-  component_name varchar(64) not null,
-  adv_interval   int,
-  tx_power       int,
-  slot           int,
-  update_status  int,
-  data           text,
-  update_data    text,
+  id            varchar(64) not null,
+  component_id  varchar(64) not null,
+  update_status int,
+  data          text,
+  update_data   text,
   primary key (id),
   FOREIGN KEY (`component_id`) REFERENCES component (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 );

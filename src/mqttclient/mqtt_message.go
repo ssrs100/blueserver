@@ -66,15 +66,24 @@ func infoCollect(client MQTT.Client, msg MQTT.Message) {
 }
 
 type ActionResponse struct {
-	AddrType int
-	Addr     string
-	Status   int
+	Msg      string `json:"msg"`
+	DmacType string `json:"dmac_type"`
+	Dmac     string `json:"dmac"`
+	Result   string `json:"result"`
+	//0，	成功
+	//1，	鉴权失败
+	//2，	没有发现设备
+	//3，	密码错误
+	//4，	参数错误
+	//5，	超时
+	//6，	配置异常
 }
 
-func actionResponse(client MQTT.Client, msg MQTT.Message) {
+func actionModifyResponse(client MQTT.Client, msg MQTT.Message) {
+	log.Info("")
 	topicSegs := strings.Split(msg.Topic(), "/")
-	// /GW/00-50-56-C0-00-01/status
-	if len(topicSegs) != 4 {
+	// /GW/00-50-56-C0-00-01/status/response
+	if len(topicSegs) < 4 {
 		log.Warn("Topic is not 4, ignore. topic:%s", msg.Topic())
 		return
 	}
@@ -86,74 +95,62 @@ func actionResponse(client MQTT.Client, msg MQTT.Message) {
 		return
 	}
 
-	responses := strings.Split(string(payload), "\r\n")
-	for _, c := range responses {
-		// +RESPONSE=Addr_type,addr,status\r\n
-		if len(c) <= 10 {
-			continue
-		}
-		ci := c[10:]
-		items := strings.Split(ci, ",")
-		if len(items) != 3 {
-			log.Warn("error format item:%s", c)
-			continue
-		}
-		addrType := items[0]
-		mac := items[1]
-		status := items[2]
-		st, err := strconv.Atoi(status)
+	// get response
+	var resp ActionResponse
+	err := json.Unmarshal(payload, &resp)
+	if err != nil {
+		log.Error("Invalid payload. err:%s", err.Error())
+		return
+	}
+
+	// get addr type
+	var addrType string
+	if resp.DmacType == "0" {
+		addrType = "BEACON"
+	} else if resp.DmacType == "1" {
+		addrType = "GATEWAY"
+	} else {
+		log.Error("unknown addr type(%s)", addrType)
+		return
+	}
+
+	dbCom := bluedb.QueryComponentByMacAndType(resp.Dmac, addrType)
+	if dbCom == nil {
+		log.Warn("device(mac:%s, addrType:%s) not register", resp.Dmac, addrType)
+		return
+	}
+
+	comDetail, err := bluedb.QueryComponentDetailByComponentId(dbCom.Id)
+	if err != nil {
+		log.Warn("query detail err:%s", err.Error())
+		return
+	}
+	// status 1 indicates success
+	if resp.Result == "0" {
+		comDetail.UpdateStatus = model.UpdateSuccess
+		comDetail.Data = comDetail.UpdateData
+		comDetail.UpdateData = ""
+		err = bluedb.UpdateComponentDetail(*comDetail)
 		if err != nil {
-			log.Error("status(%s) is invalid", status)
-			continue
+			log.Warn("update component detail err:%s", err.Error())
+			return
 		}
-		if addrType == "0" {
-			addrType = "BEACON"
-		} else if addrType == "1" {
-			addrType = "GATEWAY"
-		} else {
-			log.Error("unknown addr type(%s)", addrType)
-		}
-		dbCom := bluedb.QueryComponentByMacAndType(mac, addrType)
-		if dbCom == nil {
-			log.Warn("device not register")
-			continue
-		}
-
-		comDetail, err := bluedb.QueryComponentDetailByComponentId(dbCom.Id)
+	} else {
+		log.Warn("get result:%s", resp.Result)
+		st, err := strconv.Atoi(resp.Result)
 		if err != nil {
-			log.Warn("query detail err:%s", err.Error())
-			continue
+			log.Error("err:%s", err.Error())
+			return
 		}
-		// status 1 indicates success
-		if st == 1 {
-			cd := &model.ComponentDetail{}
-			updateData := comDetail.UpdateData
-			if err := json.Unmarshal([]byte(updateData), cd); err != nil {
-				log.Error("Unmarshal failed, updateData:%s", updateData)
-				continue
-			}
-			comDetail.UpdateStatus = st
-			comDetail.UpdateData = ""
-			comDetail.TxPower = cd.TxPower
-			comDetail.AdvInterval = cd.AdvInterval
-			comDetail.ComponentName = cd.ComponentName
-			comDetail.Data = cd.Data
-			comDetail.Slot = cd.Slot
-			bluedb.UpdateComponentDetail(*comDetail)
+		d := bluedb.ComponentDetail{
+			Id:           comDetail.Id,
+			UpdateStatus: st,
+		}
 
-			com, err := bluedb.QueryComponentById(dbCom.Id)
-			if err != nil {
-				continue
-			}
-			com.ComponentPassword = cd.NewPassword
-			bluedb.UpdateComponent(*com)
-
-		} else {
-			d := bluedb.ComponentDetail{
-				Id:           comDetail.Id,
-				UpdateStatus: st,
-			}
-			bluedb.UpdateDetailStatusOnly(d)
+		err = bluedb.UpdateDetailStatusOnly(d)
+		if err != nil {
+			log.Error("err:%s", err.Error())
+			return
 		}
 	}
 

@@ -22,7 +22,7 @@ var (
 
 const (
 	HttpPort = "8080"
-	ClientId = "blueserver"
+	ClientId = "blueserver1"
 )
 
 // This NoOpStore type implements the go-mqtt/Store interface, which
@@ -115,7 +115,7 @@ func (mc *MQTTClient) subscribe_init() {
 		topicStatus := fmt.Sprintf("/GW/%s/status", component.MacAddr)
 		mc.c.Subscribe(topicStatus, 0, infoCollect)
 		topicResponse := fmt.Sprintf("/GW/%s/action/response", component.MacAddr)
-		mc.c.Subscribe(topicResponse, 0, actionResponse)
+		mc.c.Subscribe(topicResponse, 0, actionModifyResponse)
 	}
 }
 
@@ -124,11 +124,11 @@ func (mc *MQTTClient) Subscribe(clientID string) {
 	topicStatus := fmt.Sprintf("/GW/%s/status", clientID)
 	mc.c.Subscribe(topicStatus, 0, infoCollect)
 	topicResponse := fmt.Sprintf("/GW/%s/action/response", clientID)
-	mc.c.Subscribe(topicResponse, 0, actionResponse)
+	mc.c.Subscribe(topicResponse, 0, actionModifyResponse)
 }
 
-func (mc *MQTTClient) Publish(clientID string, load interface{}) {
-	topic := fmt.Sprintf("/GW/%s/status", clientID)
+func (mc *MQTTClient) PublishModify(clientID string, load interface{}) {
+	topic := fmt.Sprintf("/GW/%s/action", clientID)
 	token := mc.c.Publish(topic, 0, false, load)
 	token.Wait()
 }
@@ -141,13 +141,14 @@ func (mc *MQTTClient) UnSubscribe(clientID string) {
 	mc.c.Unsubscribe(topicResponse)
 }
 
-func (mc *MQTTClient) NotifyUserAdd(name, password string) {
+func (mc *MQTTClient) NotifyUserAdd(name, password, id string) {
 	brokerHost := mc.config.GetString("mqtt_broker")
 	endpoint := "http://" + brokerHost + ":" + HttpPort + "/v1/users"
 	log.Debug("Notify user add endpoint:%s", endpoint)
 	userMap := make(map[string]interface{})
 	userMap["name"] = name
 	userMap["password"] = password
+	userMap["project_id"] = id
 	bytesData, err := json.Marshal(userMap)
 	if err != nil {
 		log.Error(err.Error())
