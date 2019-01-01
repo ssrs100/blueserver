@@ -78,7 +78,7 @@ func InitClient(conf *conf.Config) *MQTTClient {
 	broker := "tcp://" + brokerHost + ":1883"
 
 	opts.AddBroker(broker)
-	opts.SetClientID(ClientId)
+	opts.SetClientID(conf.GetStringWithDefault("clientId", ClientId))
 	opts.SetStore(myNoOpStore)
 	admin := bluedb.QueryUserByName("admin")
 	if admin == nil {

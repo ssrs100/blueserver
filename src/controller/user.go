@@ -151,7 +151,7 @@ func CreateUser(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 		return
 	}
 	name := strings.TrimSpace(userReq.Name)
-	if len(name) <= 0 || len(name) > 60 {
+	if len(name) <= 0 || len(name) >= 60 {
 		strErr := fmt.Sprintf("Name(%s) is empty or exceed 60 bytes.", userReq.Name)
 		log.Error(strErr)
 		DefaultHandler.ServeHTTP(w, req, errors.New(strErr), http.StatusBadRequest)

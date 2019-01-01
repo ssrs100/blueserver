@@ -11,6 +11,23 @@ import (
 	"time"
 )
 
+const (
+	CollectType = "adv_data_ind"
+)
+
+type CollectInfoUnit struct {
+	DmacType string `json:"dmac_type"`
+	Dmac     string `json:"dmac"`
+	Rssi     string `json:"rssi"`
+	Data     string `json:"data"`
+}
+
+type CollectInfo struct {
+	Msg  string            `json:"msg"`
+	Gmac string            `json:"gmac"`
+	Obj  []CollectInfoUnit `json:"obj"`
+}
+
 func infoCollect(client MQTT.Client, msg MQTT.Message) {
 	topicSegs := strings.Split(msg.Topic(), "/")
 	// /GW/00-50-56-C0-00-01/status
@@ -20,33 +37,36 @@ func infoCollect(client MQTT.Client, msg MQTT.Message) {
 	}
 	clientID := topicSegs[2]
 	payload := msg.Payload()
-	log.Debug("clientID:%s, payload:%v", clientID, payload)
+	log.Debug("info clientID:%s, payload:%v", clientID, string(payload))
 	if len(payload) == 0 {
 		log.Error("pay load is 0")
 		return
 	}
 
+	// get info
+	var info CollectInfo
+	err := json.Unmarshal(payload, &info)
+	if err != nil {
+		log.Error("Invalid payload. err:%s", err.Error())
+		return
+	}
+
+	if info.Msg != CollectType {
+		log.Error("Invalid msg:%s", info.Msg)
+		return
+	}
+
 	collections := make([]bluedb.Collection, 0)
-	components := strings.Split(string(payload), "\r\n")
-	for _, c := range components {
-		// +SCAN=1, DC0D30010203,-15,62,00023343405960ADF
-		if len(c) <= 6 {
-			continue
-		}
-		ci := c[6:]
-		items := strings.Split(ci, ",")
-		if len(items) != 5 {
-			log.Warn("error format item:%s", c)
-			continue
-		}
-		dbCom := bluedb.QueryComponentByMac(items[1])
+	for _, c := range info.Obj {
+		addrType := deviceTypeProto2Name(c.DmacType)
+		dbCom := bluedb.QueryComponentByMacAndType(c.Dmac, addrType)
 		if dbCom == nil {
-			log.Warn("device not register")
+			log.Warn("device(%v) not register", c)
 			continue
 		}
-		rssi, err := strconv.Atoi(items[2])
+		rssi, err := strconv.Atoi(c.Rssi)
 		if err != nil {
-			log.Error("invalid rssi:%s", items[2])
+			log.Error("invalid rssi:%d", rssi)
 			continue
 		}
 		u2, _ := uuid.NewV4()
@@ -54,7 +74,7 @@ func infoCollect(client MQTT.Client, msg MQTT.Message) {
 			Id:          u2.String(),
 			ComponentId: dbCom.Id,
 			Rssi:        rssi,
-			Data:        items[4],
+			Data:        c.Data,
 			CreateAt:    time.Now().UTC(),
 		}
 		collections = append(collections, component)
@@ -103,16 +123,7 @@ func actionModifyResponse(client MQTT.Client, msg MQTT.Message) {
 		return
 	}
 
-	// get addr type
-	var addrType string
-	if resp.DmacType == "0" {
-		addrType = "BEACON"
-	} else if resp.DmacType == "1" {
-		addrType = "GATEWAY"
-	} else {
-		log.Error("unknown addr type(%s)", addrType)
-		return
-	}
+	addrType := deviceTypeProto2Name(resp.DmacType)
 
 	dbCom := bluedb.QueryComponentByMacAndType(resp.Dmac, addrType)
 	if dbCom == nil {
@@ -154,4 +165,18 @@ func actionModifyResponse(client MQTT.Client, msg MQTT.Message) {
 		}
 	}
 
+}
+
+func deviceTypeProto2Name(proto string) string {
+	// get addr type
+	var addrType string
+	if proto == "0" {
+		addrType = "BEACON"
+	} else if proto == "1" {
+		addrType = "GATEWAY"
+	} else {
+		log.Error("unknown addr type(%s)", addrType)
+		addrType = ""
+	}
+	return addrType
 }
