@@ -1,3 +1,5 @@
 .idea
 src/test.go
 bin/blueserver*
+conf/blueserver.json
+conf/log4g.json
