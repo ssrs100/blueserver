@@ -1,9 +1,0 @@
-{
-  "host": "172.31.25.86",
-  "port": 7443,
-  "db_host": "172.31.23.155",
-  "db_port": 3306,
-  "cert": "ssl.crt",
-  "key": "ssl.key",
-  "mqtt_broker": "172.31.31.232"
-}
