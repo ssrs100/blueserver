@@ -155,12 +155,14 @@ func CreateUser(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 		strErr := fmt.Sprintf("Name(%s) is empty or exceed 60 bytes.", userReq.Name)
 		log.Error(strErr)
 		DefaultHandler.ServeHTTP(w, req, errors.New(strErr), http.StatusBadRequest)
+                return
 	}
 	passwd := strings.TrimSpace(userReq.Passwd)
 	if len(passwd) <= 6 || len(passwd) > 120 {
 		strErr := fmt.Sprintf("Passwd is less 6 or exceed 120 bytes.")
 		log.Error(strErr)
 		DefaultHandler.ServeHTTP(w, req, errors.New(strErr), http.StatusBadRequest)
+                return
 	}
 
 	email := strings.TrimSpace(userReq.Email)
@@ -168,6 +170,7 @@ func CreateUser(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 		strErr := fmt.Sprintf("Email is invalid.")
 		log.Error(strErr)
 		DefaultHandler.ServeHTTP(w, req, errors.New(strErr), http.StatusBadRequest)
+                return
 	}
 
 	user := bluedb.QueryUserByEmail(email)
