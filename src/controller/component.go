@@ -208,13 +208,14 @@ func UpdateComponent(w http.ResponseWriter, req *http.Request, ps httprouter.Par
 		return
 	}
 
-	var compass, name string
-	if len(comReq.ComponentPassword) == 0 {
-		compass = comdb.ComponentPassword
+	compass := comdb.ComponentPassword
+	name := comdb.Name
+	if len(comReq.ComponentPassword) > 0 {
+		compass = comReq.ComponentPassword
 	}
 
-	if len(comReq.Name) == 0 {
-		name = comdb.Name
+	if len(comReq.Name) > 0 {
+		name = comReq.Name
 	}
 
 	component := bluedb.Component{
