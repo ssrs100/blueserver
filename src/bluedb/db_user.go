@@ -12,14 +12,15 @@ var (
 )
 
 type User struct {
-	Id      string `orm:"size(64);pk"`
-	Name    string `orm:"size(128)"`
-	Passwd  string `orm:"size(128)"`
-	Email   string `orm:"size(128);null"`
-	Mobile  string `orm:"size(128);null"`
-	Address string `orm:"size(512);null"`
+	Id        string `orm:"size(64);pk"`
+	Name      string `orm:"size(128)"`
+	Passwd    string `orm:"size(128)"`
+	Email     string `orm:"size(128);null"`
+	Mobile    string `orm:"size(128);null"`
+	Address   string `orm:"size(512);null"`
+	AccessKey string `orm:"size(128);null"`
+	SecretKey string `orm:"size(128);null"`
 }
-
 
 func CreateUser(user User) string {
 	o := orm.NewOrm()
@@ -93,7 +94,6 @@ func QueryUserById(id string) (u User, err error) {
 	}
 	return user, nil
 }
-
 
 func QueryUserByEmail(email string) *User {
 	var users []User

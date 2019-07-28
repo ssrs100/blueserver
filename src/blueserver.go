@@ -4,6 +4,7 @@ import (
 	"bluedb"
 	"conf"
 	"controller"
+	"controller/aws"
 	"fmt"
 	"github.com/julienschmidt/httprouter"
 	"logs"
@@ -84,6 +85,8 @@ func (s *Server) RegisterRoutes() *httprouter.Router {
 	router.PUT("/equipment/v1/:projectId/components/:componentId/detail", controller.UpdateComponentDetail)
 	router.PUT("/equipment/v1/:projectId/components/:componentId/detail/cancel-modifying", controller.CancelUpdateDetail)
 	router.PUT("/equipment/v1/:projectId/components/:componentId/detail/sync", controller.SyncComponentDetail)
+
+	router.GET("/aws/v1/:projectId/things", aws.ListThings)
 	return router
 }
 
