@@ -35,14 +35,10 @@ func ListThings(w http.ResponseWriter, req *http.Request, ps httprouter.Params) 
 		return
 	}
 
-	limit := req.URL.Query().Get("limit")
+	limit := req.URL.Query().Get("maxResults")
 	nextToken := req.URL.Query().Get("nextToken")
+	thingTypeName := req.URL.Query().Get("thingTypeName")
 	sess := session.Must(session.NewSession())
-
-	// Create a SNS client with additional configuration
-	// 方式一: 使用文件证书位置默认为~/.aws/credentials
-	//svc := sns.New(sess, aws.NewConfig().WithRegion(region))
-	// 方式二: 使用传参方式
 	creds := credentials.NewStaticCredentials(
 		u.AccessKey,
 		u.SecretKey,
@@ -68,6 +64,9 @@ func ListThings(w http.ResponseWriter, req *http.Request, ps httprouter.Params) 
 
 	if len(nextToken) > 0 {
 		awsReq.NextToken = &nextToken
+	}
+	if len(thingTypeName) > 0 {
+		awsReq.ThingTypeName = &thingTypeName
 	}
 
 	rsp, err := svc.ListThings(&awsReq)
