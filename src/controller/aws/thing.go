@@ -69,13 +69,20 @@ func ListThings(w http.ResponseWriter, req *http.Request, ps httprouter.Params) 
 		awsReq.ThingTypeName = &thingTypeName
 	}
 
-	rsp, err := svc.ListThings(&awsReq)
+	rsp, err := listThings(svc, &awsReq)
 	if err != nil {
 		w.WriteHeader(http.StatusBadGateway)
 		errStr := fmt.Sprintf("aws return err:%s", err.Error())
 		_, _ = w.Write([]byte(errStr))
 		return
 	}
+	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(rsp.String()))
+}
+
+func listThings(svc *iot.IoT, input *iot.ListThingsInput) (*iot.ListThingsOutput, error) {
+	req, out := svc.ListThingsRequest(input)
+	req.HTTPRequest.Header.Add("Accept", "application/json")
+	return out, req.Send()
 }
