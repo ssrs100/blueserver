@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
+        "github.com/aws/aws-sdk-go/private/protocol/json/jsonutil"
 	"github.com/aws/aws-sdk-go/service/iot"
 	"github.com/julienschmidt/httprouter"
 	"logs"
@@ -76,9 +77,18 @@ func ListThings(w http.ResponseWriter, req *http.Request, ps httprouter.Params) 
 		_, _ = w.Write([]byte(errStr))
 		return
 	}
+	outBytes, err := jsonutil.BuildJSON(rsp)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		errStr := fmt.Sprintf("aws build json err:%s, rsp:%s", err.Error(), rsp.String())
+		_, _ = w.Write([]byte(errStr))
+		return
+	}
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(rsp.String()))
+	//_, _ = w.Write([]byte(rsp.String()))
+	_, _ = w.Write(outBytes)
 }
 
 func listThings(svc *iot.IoT, input *iot.ListThingsInput) (*iot.ListThingsOutput, error) {
