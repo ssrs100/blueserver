@@ -17,7 +17,7 @@ import (
 var (
 	log = logs.GetLogger()
 
-	region = "us-west-1"
+	region = "us-west-2"
 )
 
 func ListThings(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
