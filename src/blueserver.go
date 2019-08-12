@@ -121,6 +121,8 @@ func Start() error {
 	mc := mqttclient.InitClient(s.configure)
 	mc.Start()
 
+	mqttclient.InitAwsClient()
+
 	router := s.RegisterRoutes()
 	host := s.configure.GetString("host")
 	port := s.configure.GetInt("port")
