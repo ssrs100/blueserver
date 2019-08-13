@@ -76,7 +76,7 @@ func InitClient(conf *conf.Config) *MQTTClient {
 	//"tcp://52.8.63.206:1883"
 	brokerHost := conf.GetString("mqtt_broker")
 	broker := "tcp://" + brokerHost + ":1883"
-
+	fmt.Println(broker)
 	opts.AddBroker(broker)
 	opts.SetClientID(conf.GetStringWithDefault("clientId", ClientId))
 	opts.SetStore(myNoOpStore)
