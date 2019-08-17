@@ -99,6 +99,7 @@ func GetLatest(table string, thing string) (data *OutData, err error) {
 			"order by time desc limit 1", columnStr, table, thing),
 		Database: dbName,
 	}
+	logs.Debug("%s", q.Command)
 	response, err := influx.c.Query(q)
 	if err != nil {
 		return nil, err
