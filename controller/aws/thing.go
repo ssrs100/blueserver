@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -9,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iot"
 	"github.com/jack0liu/logs"
 	"github.com/ssrs100/blueserver/bluedb"
+	"github.com/ssrs100/blueserver/influxdb"
 	"net/http"
 	"strconv"
 )
@@ -16,6 +18,28 @@ import (
 var (
 	region = "us-west-2"
 )
+
+func GetThingLatestData(w http.ResponseWriter, req *http.Request, ps map[string]string) {
+	thing := ps["thingName"]
+	data, err := influxdb.GetLatest("temperature", thing)
+	if err != nil {
+		logs.Error("Invalid data. err:%s", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte("thing id not found"))
+		return
+	}
+	body, err := json.Marshal(data)
+	if err != nil {
+		logs.Error("Invalid data. err:%s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(err.Error()))
+		return
+	}
+	_, _ = w.Write(body)
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+}
 
 func ListThings(w http.ResponseWriter, req *http.Request, ps map[string]string) {
 	projectId := ps["projectId"]
@@ -44,7 +68,7 @@ func ListThings(w http.ResponseWriter, req *http.Request, ps map[string]string) 
 	)
 	svc := iot.New(sess, &aws.Config{Credentials: creds, Region: aws.String(region)})
 	awsReq := iot.ListThingsInput{
-		NextToken:  nil,
+		NextToken: nil,
 	}
 	if len(limit) > 0 {
 		limitInt, err := strconv.Atoi(limit)

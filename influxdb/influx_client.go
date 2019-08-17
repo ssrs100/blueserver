@@ -13,6 +13,7 @@ import (
 
 type ReportData struct {
 	Device      string `json:"device"`
+	Thing       string `json:"thing"`
 	Timestamp   int64  `json:"timestamp"`
 	Rssi        int    `json:"rssi"`
 	Temperature int    `json:"temperature"`
@@ -20,6 +21,7 @@ type ReportData struct {
 }
 
 type OutData struct {
+	Thing       string      `json:"thing"`
 	Device      string      `json:"device"`
 	Timestamp   string      `json:"timestamp"`
 	Rssi        json.Number `json:"rssi"`
@@ -38,7 +40,7 @@ const (
 	retention = "default"
 )
 
-var columns = []string{"time", "device", "humidity", "rssi", "temperature"}
+var columns = []string{"time", "device", "humidity", "rssi", "temperature", "thing"}
 var columnStr string
 
 func init() {
@@ -67,6 +69,7 @@ func Insert(table string, data *ReportData) error {
 	fields["temperature"] = data.Temperature
 	fields["humidity"] = data.Humidity
 	fields["rssi"] = data.Rssi
+	fields["thing"] = data.Thing
 	rdTime := time.Unix(0, data.Timestamp*1000000)
 
 	pts := make([]client.Point, 0)
@@ -90,10 +93,10 @@ func Insert(table string, data *ReportData) error {
 	return nil
 }
 
-func GetLatest(table string, device string) (data *OutData, err error) {
+func GetLatest(table string, thing string) (data *OutData, err error) {
 	q := client.Query{
-		Command: fmt.Sprintf("select %s from %s where device='%s' "+
-			"order by time desc limit 1", columnStr, table, device),
+		Command: fmt.Sprintf("select %s from %s where thing='%s' "+
+			"order by time desc limit 1", columnStr, table, thing),
 		Database: dbName,
 	}
 	response, err := influx.c.Query(q)
@@ -125,14 +128,15 @@ func getOneData(data []interface{}) *OutData {
 	ret.Humidity, _ = data[2].(json.Number)
 	ret.Rssi, _ = data[3].(json.Number)
 	ret.Temperature, _ = data[4].(json.Number)
+	ret.Thing, _ = data[5].(string)
 	return &ret
 }
 
-func GetDataByTime(table string, device, startAt, endAt string) (datas []*OutData, err error) {
+func GetDataByTime(table string, thing, startAt, endAt string) (datas []*OutData, err error) {
 	// startAt, endAt like '2019-08-17T06:40:27.995Z'
 	q := client.Query{
-		Command: fmt.Sprintf("select %s from %s where time >= '%s' and time < '%s' device='%s' "+
-			"order by time desc", columnStr, table, startAt, endAt, device),
+		Command: fmt.Sprintf("select %s from %s where time >= '%s' and time < '%s' thing='%s' "+
+			"order by time desc", columnStr, table, startAt, endAt, thing),
 		Database: dbName,
 	}
 	response, err := influx.c.Query(q)

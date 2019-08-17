@@ -25,15 +25,14 @@ var _ awserr.Error
 var _ request.Request
 
 var (
-	reportChan chan Shadow
-	shadowChan chan Shadow
+	reportChan chan *Shadow
 	awsClient  *Client
 	snsClient  *sns.SNS
 )
 
-var msgTemplate = "[notice]device(%s) temperature is %d, it has exceeded threshold, please pay attention to it."
+var msgTemplate = "[notice]device(%s) thing(%s) temperature is %d, it has exceeded threshold, please pay attention to it."
 
-var cleanTemplate = "[clean]device(%s) temperature is %d, it drops below threshold."
+var cleanTemplate = "[clean]device(%s) thing(%s) temperature is %d, it drops below threshold."
 
 var deviceSnsCache *cache.Cache
 
@@ -74,10 +73,11 @@ func startAwsClient() {
 				logs.Debug("failed to read from shadow channel")
 			} else {
 				var rd influxdb.ReportData
-				if err := json.Unmarshal(s, &rd); err != nil {
+				if err := json.Unmarshal(s.Msg, &rd); err != nil {
 					logs.Error("err:%s", err.Error())
 					continue
 				}
+				rd.Thing = s.Thing
 				if err := influxdb.Insert("temperature", &rd); err != nil {
 					logs.Error("%s", err.Error())
 					continue
@@ -124,7 +124,7 @@ func sendNotifyMsg(data *influxdb.ReportData) {
 
 	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelFn()
-	msg := fmt.Sprintf(msgTemplate, data.Device, data.Temperature)
+	msg := fmt.Sprintf(msgTemplate, data.Device, data.Temperature, data.Thing)
 	params := &sns.PublishInput{
 		Message:  aws.String(msg),
 		TopicArn: aws.String("arn:aws:sns:us-west-2:415890359503:email"),
@@ -160,7 +160,7 @@ func sendCleanMsg(data *influxdb.ReportData) {
 
 	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelFn()
-	msg := fmt.Sprintf(cleanTemplate, data.Device, data.Temperature)
+	msg := fmt.Sprintf(cleanTemplate, data.Device, data.Temperature, data.Thing)
 	params := &sns.PublishInput{
 		Message:  aws.String(msg),
 		TopicArn: aws.String("arn:aws:sns:us-west-2:415890359503:email"),

@@ -14,7 +14,7 @@ import (
 
 // Thing a structure for working with the AWS IoT device shadows
 type Client struct {
-	client    mqtt.Client
+	client mqtt.Client
 }
 
 // ThingName the name of the AWS IoT device representation
@@ -28,7 +28,10 @@ type KeyPair struct {
 }
 
 // Shadow device shadow data
-type Shadow []byte
+type Shadow struct {
+	Msg   []byte
+	Thing string
+}
 
 // NewThing returns a new instance of Thing
 func NewClient(keyPair KeyPair, awsEndpoint string, clientId string) (*Client, error) {
@@ -45,7 +48,7 @@ func NewClient(keyPair KeyPair, awsEndpoint string, clientId string) (*Client, e
 
 	tlsConfig := &tls.Config{
 		Certificates: []tls.Certificate{tlsCert},
-		RootCAs: certs,
+		RootCAs:      certs,
 	}
 
 	if err != nil {
@@ -64,22 +67,26 @@ func NewClient(keyPair KeyPair, awsEndpoint string, clientId string) (*Client, e
 	if token := c.Connect(); token.Wait() && token.Error() != nil {
 		return nil, token.Error()
 	}
-	awsClient := Client {
+	awsClient := Client{
 		client: c,
 	}
 	return &awsClient, nil
 }
 
 // GetThingShadow gets the current thing shadow
-func (t *Client) GetThingShadow(thingName string) (Shadow, error) {
-	shadowChan := make(chan Shadow)
+func (t *Client) GetThingShadow(thingName string) (*Shadow, error) {
+	shadowChan := make(chan *Shadow)
 	errChan := make(chan error)
 
 	if token := t.client.Subscribe(
 		fmt.Sprintf("$aws/things/%s/shadow/get/accepted", thingName),
 		0,
 		func(client mqtt.Client, msg mqtt.Message) {
-			shadowChan <- msg.Payload()
+			s := Shadow{
+				Msg:   msg.Payload(),
+				Thing: thingName,
+			}
+			shadowChan <- &s
 		},
 	); token.Wait() && token.Error() != nil {
 		return nil, token.Error()
@@ -122,20 +129,26 @@ func (t *Client) GetThingShadow(thingName string) (Shadow, error) {
 
 // UpdateThingShadow publish a message with new thing shadow
 func (t *Client) UpdateThingShadow(thingName string, payload Shadow) error {
-	token := t.client.Publish(fmt.Sprintf("$aws/things/%s/shadow/update", thingName), 0, false, []byte(payload))
+	token := t.client.Publish(fmt.Sprintf("$aws/things/%s/shadow/update", thingName), 0, false, []byte(payload.Msg))
 	token.Wait()
 	return token.Error()
 }
 
 // SubscribeForThingShadowChanges returns the channel with the shadow updates
-func (t *Client) SubscribeForThingShadowChanges() (chan Shadow, error) {
-	shadowChan := make(chan Shadow)
+func (t *Client) SubscribeForThingShadowChanges() (chan *Shadow, error) {
+	shadowChan := make(chan *Shadow)
 
 	token := t.client.Subscribe(
 		fmt.Sprintf("$aws/things/+/shadow/update/accepted"),
 		0,
 		func(client mqtt.Client, msg mqtt.Message) {
-			shadowChan <- msg.Payload()
+			tpc := msg.Topic()
+			thing := tpc[len("$aws/things/") : len(tpc)-len("/shadow/update/accepted")]
+			s := Shadow{
+				Msg:   msg.Payload(),
+				Thing: thing,
+			}
+			shadowChan <- &s
 		},
 	)
 	token.Wait()
@@ -144,18 +157,22 @@ func (t *Client) SubscribeForThingShadowChanges() (chan Shadow, error) {
 }
 
 // SubscribeForThingReport returns the channel with the shadow updates
-func (t *Client) SubscribeForThingReport() (chan Shadow, error) {
-	shadowChan := make(chan Shadow)
-
+func (t *Client) SubscribeForThingReport() (chan *Shadow, error) {
+	shadowChan := make(chan *Shadow)
 	token := t.client.Subscribe(
 		fmt.Sprintf("$aws/things/+/reports"),
 		0,
 		func(client mqtt.Client, msg mqtt.Message) {
-			shadowChan <- msg.Payload()
+			tpc := msg.Topic()
+			thing := tpc[len("$aws/things/") : len(tpc)-len("/reports")]
+			s := Shadow{
+				Msg:   msg.Payload(),
+				Thing: thing,
+			}
+			shadowChan <- &s
 		},
 	)
 	token.Wait()
 
 	return shadowChan, token.Error()
 }
-

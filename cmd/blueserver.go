@@ -9,6 +9,7 @@ import (
 	"github.com/ssrs100/blueserver/bluedb"
 	"github.com/ssrs100/blueserver/controller"
 	"github.com/ssrs100/blueserver/controller/aws"
+	"github.com/ssrs100/blueserver/influxdb"
 	"github.com/ssrs100/blueserver/mqttclient"
 	"net/http"
 	"os"
@@ -84,6 +85,7 @@ func (s *Server) RegisterRoutes() *httptreemux.TreeMux {
 	router.PUT("/equipment/v1/:projectId/components/:componentId/detail/sync", controller.SyncComponentDetail)
 
 	router.GET("/aws/v1/:projectId/things", aws.ListThings)
+	router.GET("/aws/v1/:projectId/things/:thingName/latest", aws.GetThingLatestData)
 	return router
 }
 
@@ -118,6 +120,8 @@ func Start() error {
 
 	mc := mqttclient.InitClient(s.configure)
 	mc.Start()
+
+	influxdb.InitFlux()
 
 	router := s.RegisterRoutes()
 	host := s.configure.GetString("host")
