@@ -53,3 +53,16 @@ func Insert(table string, fields map[string]interface{}) error {
 	}
 	return nil
 }
+
+func GetLatest(table string, device string) (fields map[string]interface{}, err error) {
+	q := client.Query{
+		Command:  fmt.Sprintf("select * from %s where device='%s' order by time desc limit 1", table, device),
+		Database: dbName,
+	}
+	response, err := influx.c.Query(q)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println(response.Results)
+	return nil, nil
+}

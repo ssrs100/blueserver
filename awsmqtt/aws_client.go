@@ -69,6 +69,11 @@ func startAwsClient() {
 					logs.Error("%s", err.Error())
 					continue
 				}
+				if _, err := influxdb.GetLatest("temperature", "DC0D30AABB02"); err != nil {
+					logs.Error("%s", err.Error())
+					continue
+				}
+
 				logs.Debug("insert influxdb success")
 			}
 		}
