@@ -101,6 +101,7 @@ func GetLatest(table string, device string) (data *ReportData, err error) {
 				logs.Warn("columns less %d", len(columns))
 				continue
 			}
+			logs.Debug("%v", data)
 			ret := ReportData{}
 			ret.Timestamp, _ = data[0].(int64)
 			ret.Device, _ = data[1].(string)
