@@ -1,15 +1,12 @@
 package bluedb
 
 import (
+	"github.com/astaxie/beego/orm"
 	_ "github.com/go-sql-driver/mysql" // import your used driver
+	"github.com/jack0liu/logs"
 	"github.com/satori/go.uuid"
-	"github.com/ssrs100/orm"
-	"logs"
 )
 
-var (
-	log = logs.GetLogger()
-)
 
 type User struct {
 	Id        string `orm:"size(64);pk"`
@@ -26,14 +23,14 @@ func CreateUser(user User) string {
 	o := orm.NewOrm()
 	u2, err := uuid.NewV4()
 	if err != nil {
-		log.Error("create user uuid wrong: %s", err.Error())
+		logs.Error("create user uuid wrong: %s", err.Error())
 		return ""
 	}
 	user.Id = u2.String()
 	// insert
 	id, err := o.Insert(&user)
-	log.Info("create user id: %v", id)
-	log.Info("create user: %v", user)
+	logs.Info("create user id: %v", id)
+	logs.Info("create user: %v", user)
 	return user.Id
 }
 
@@ -43,7 +40,7 @@ func DeleteUser(id string) error {
 	if _, err := o.Delete(&u); err != nil {
 		return err
 	}
-	log.Info("delete user: %v", id)
+	logs.Info("delete user: %v", id)
 	return nil
 }
 
@@ -53,7 +50,7 @@ func QueryUsers(params map[string]interface{}) []User {
 	// 第二个返回值是错误对象，在这里略过
 	qb, err := orm.NewQueryBuilder("mysql")
 	if err != nil {
-		log.Error("build sql error:%s", err.Error())
+		logs.Error("build sql error:%s", err.Error())
 		return nil
 	}
 
@@ -73,7 +70,7 @@ func QueryUsers(params map[string]interface{}) []User {
 
 	// 导出 SQL 语句
 	sql := qb.String()
-	log.Debug(sql)
+	logs.Debug(sql)
 	// 执行 SQL 语句
 	o := orm.NewOrm()
 	if name != nil && len(name.(string)) > 0 {
@@ -89,7 +86,7 @@ func QueryUserById(id string) (u User, err error) {
 	o := orm.NewOrm()
 	user := User{Id: id}
 	if err := o.Read(&user); err != nil {
-		log.Error("query user fail: %v", id)
+		logs.Error("query user fail: %v", id)
 		return user, err
 	}
 	return user, nil
@@ -101,7 +98,7 @@ func QueryUserByEmail(email string) *User {
 	// 第二个返回值是错误对象，在这里略过
 	qb, err := orm.NewQueryBuilder("mysql")
 	if err != nil {
-		log.Error("build sql error:%s", err.Error())
+		logs.Error("build sql error:%s", err.Error())
 		return nil
 	}
 
@@ -110,7 +107,7 @@ func QueryUserByEmail(email string) *User {
 
 	// 导出 SQL 语句
 	sql := qb.String()
-	log.Debug(sql)
+	logs.Debug(sql)
 	// 执行 SQL 语句
 	o := orm.NewOrm()
 	o.Raw(sql, email).QueryRows(&users)
@@ -125,7 +122,7 @@ func QueryUserByName(name string) *User {
 	var users []User
 	qb, err := orm.NewQueryBuilder("mysql")
 	if err != nil {
-		log.Error("build sql error:%s", err.Error())
+		logs.Error("build sql error:%s", err.Error())
 		return nil
 	}
 
@@ -134,7 +131,7 @@ func QueryUserByName(name string) *User {
 
 	// 导出 SQL 语句
 	sql := qb.String()
-	log.Debug(sql)
+	logs.Debug(sql)
 	// 执行 SQL 语句
 	o := orm.NewOrm()
 	o.Raw(sql, name).QueryRows(&users)

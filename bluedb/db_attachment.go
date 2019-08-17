@@ -2,7 +2,9 @@ package bluedb
 
 import (
 	"errors"
+	"github.com/astaxie/beego/orm"
 	_ "github.com/go-sql-driver/mysql" // import your used driver
+	"github.com/jack0liu/logs"
 	"github.com/satori/go.uuid"
 	"time"
 )
@@ -20,16 +22,16 @@ func CreateAttachment(attachment Attachment) string {
 	o := orm.NewOrm()
 	u2, err := uuid.NewV4()
 	if err != nil {
-		log.Error("create user uuid wrong: %s", err.Error())
+		logs.Error("create user uuid wrong: %s", err.Error())
 		return ""
 	}
 	attachment.Id = u2.String()
 	// insert
 	_, err = o.Insert(&attachment)
 	if err != nil {
-		log.Error("create attachment fail.attachment: %v", attachment)
+		logs.Error("create attachment fail.attachment: %v", attachment)
 	}
-	log.Info("create beacon id: %v", attachment.Id)
+	logs.Info("create beacon id: %v", attachment.Id)
 	return attachment.Id
 }
 
@@ -39,7 +41,7 @@ func DeleteAttachment(id string) error {
 	if _, err := o.Delete(&b); err != nil {
 		return err
 	}
-	log.Info("delete attachment: %v", id)
+	logs.Info("delete attachment: %v", id)
 	return nil
 }
 
@@ -47,10 +49,10 @@ func DeleteAttachmentByBeacon(beaconId string) error {
 	o := orm.NewOrm()
 	r := o.Raw("DELETE from attachment WHERE beacon_id = ?", beaconId)
 	if _, err := r.Exec(); err != nil {
-		log.Error("delete beaconId(%s) attachment failed, cause:%s", beaconId, err.Error())
+		logs.Error("delete beaconId(%s) attachment failed, cause:%s", beaconId, err.Error())
 		return errors.New("Deleting attachment by beacon id failed.")
 	}
-	log.Info("delete beaconId(%s) attachment success", beaconId)
+	logs.Info("delete beaconId(%s) attachment success", beaconId)
 	return nil
 }
 
@@ -80,7 +82,7 @@ func QueryAttachments(params map[string]interface{}) []Attachment {
 	qs = qs.OrderBy("create_at")
 	_, err := qs.All(&attachments)
 	if err != nil {
-		log.Error("query attachment fail, err:%s", err.Error())
+		logs.Error("query attachment fail, err:%s", err.Error())
 	}
 	return attachments
 }
@@ -89,7 +91,7 @@ func QueryAttachmentById(id string) (u *Attachment, err error) {
 	o := orm.NewOrm()
 	attachment := Attachment{Id: id}
 	if err := o.Read(&attachment); err != nil {
-		log.Error("query attachment fail: %v", id)
+		logs.Error("query attachment fail: %v", id)
 		return nil, err
 	}
 	return &attachment, nil

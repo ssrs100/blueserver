@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/astaxie/beego/logs"
 	"github.com/jack0liu/conf"
+	"github.com/jack0liu/logs"
 	"github.com/jack0liu/utils"
 	"github.com/ssrs100/blueserver/awsmqtt"
 	"os"

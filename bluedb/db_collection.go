@@ -1,7 +1,8 @@
 package bluedb
 
 import (
-	"github.com/ssrs100/orm"
+	"github.com/astaxie/beego/orm"
+	"github.com/jack0liu/logs"
 	"time"
 )
 
@@ -18,10 +19,10 @@ func AddBatchCollections(cols []Collection) error {
 	// insert
 	_, err := o.InsertMulti(len(cols), cols)
 	if err != nil {
-		log.Error("AddBatchCollections fail.cols: %v", cols)
+		logs.Error("AddBatchCollections fail.cols: %v", cols)
 		return err
 	}
-	log.Debug("add batch collections success.")
+	logs.Debug("add batch collections success.")
 	return nil
 }
 
@@ -35,12 +36,12 @@ func QueryCollections(params map[string]interface{}) []Collection {
 	//}
 	//
 	//if startTime, ok := params["start_time"]; ok {
-	//	log.Debug("startTime:%v", startTime)
+	//	logs.Debug("startTime:%v", startTime)
 	//	qs = qs.Filter("create_at__gte", startTime)
 	//}
 	//
 	//if endTime, ok := params["end_time"]; ok {
-	//	log.Debug("endTime:%v", endTime)
+	//	logs.Debug("endTime:%v", endTime)
 	//	qs = qs.Filter("create_at__lt", endTime)
 	//}
 	//qs = qs.OrderBy("create_at")
@@ -51,7 +52,7 @@ func QueryCollections(params map[string]interface{}) []Collection {
 		"create_at >= ? and create_at < ? order by create_at asc",
 		params["component_id"], params["start_time"], params["end_time"]).QueryRows(&collections)
 	if err != nil {
-		log.Error("query collections fail, err:%s", err.Error())
+		logs.Error("query collections fail, err:%s", err.Error())
 	}
 	return collections
 }

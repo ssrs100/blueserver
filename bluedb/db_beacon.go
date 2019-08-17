@@ -1,9 +1,10 @@
 package bluedb
 
 import (
+	"github.com/astaxie/beego/orm"
 	_ "github.com/go-sql-driver/mysql" // import your used driver
+	"github.com/jack0liu/logs"
 	"github.com/satori/go.uuid"
-	"github.com/ssrs100/orm"
 	"time"
 )
 
@@ -21,16 +22,16 @@ func CreateBeacon(beacon Beacon) string {
 	o := orm.NewOrm()
 	u2, err := uuid.NewV4()
 	if err != nil {
-		log.Error("create component uuid wrong: %s", err.Error())
+		logs.Error("create component uuid wrong: %s", err.Error())
 		return ""
 	}
 	beacon.Id = u2.String()
 	// insert
 	_, err = o.Insert(&beacon)
 	if err != nil {
-		log.Error("create beacon fail.beacon: %v", beacon)
+		logs.Error("create beacon fail.beacon: %v", beacon)
 	}
-	log.Info("create beacon id: %v", beacon.Id)
+	logs.Info("create beacon id: %v", beacon.Id)
 	return beacon.Id
 }
 
@@ -40,7 +41,7 @@ func DeleteBeacon(id string) error {
 	if _, err := o.Delete(&b); err != nil {
 		return err
 	}
-	log.Info("delete beacon: %v", id)
+	logs.Info("delete beacon: %v", id)
 	return nil
 }
 
@@ -75,7 +76,7 @@ func QueryBeacons(params map[string]interface{}) []Beacon {
 	qs = qs.OrderBy("create_at")
 	_, err := qs.All(&beacons)
 	if err != nil {
-		log.Error("query beacon fail, err:%s", err.Error())
+		logs.Error("query beacon fail, err:%s", err.Error())
 	}
 	return beacons
 }
@@ -84,7 +85,7 @@ func QueryBeaconById(id string) (u *Beacon, err error) {
 	o := orm.NewOrm()
 	beacon := Beacon{Id: id}
 	if err := o.Read(&beacon); err != nil {
-		log.Error("query beacon fail: %v", id)
+		logs.Error("query beacon fail: %v", id)
 		return nil, err
 	}
 	return &beacon, nil
@@ -93,11 +94,11 @@ func QueryBeaconById(id string) (u *Beacon, err error) {
 func UpdateBeacon(beacon Beacon) error {
 	o := orm.NewOrm()
 	if _, err := o.Update(&beacon, "description"); err != nil {
-		log.Error("update beacon(%s) fail, err:%s", beacon.Id, err.Error())
+		logs.Error("update beacon(%s) fail, err:%s", beacon.Id, err.Error())
 		return err
 	}
 
-	log.Info("update beacon success, id:%v", beacon.Id)
+	logs.Info("update beacon success, id:%v", beacon.Id)
 	return nil
 }
 
@@ -105,10 +106,10 @@ func UpdateBeaconStatus(beanconId, status string) error {
 	o := orm.NewOrm()
 	beacon := Beacon{Id: beanconId, Status: status}
 	if _, err := o.Update(&beacon, "status"); err != nil {
-		log.Error("update beacon status(%s) fail, err:%s", status, err.Error())
+		logs.Error("update beacon status(%s) fail, err:%s", status, err.Error())
 		return err
 	}
 
-	log.Info("update beacon status success, id:%v, status:%v", beacon.Id, status)
+	logs.Info("update beacon status success, id:%v, status:%v", beacon.Id, status)
 	return nil
 }

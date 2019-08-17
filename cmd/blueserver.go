@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"github.com/jack0liu/conf"
 	"github.com/jack0liu/logs"
+	"github.com/jack0liu/utils"
 	"github.com/julienschmidt/httprouter"
-	"github.com/ssrs100/buleserver1/awsmqtt"
-	bluedb2 "github.com/ssrs100/buleserver1/bluedb"
-	controller2 "github.com/ssrs100/buleserver1/controller"
-	aws2 "github.com/ssrs100/buleserver1/controller/aws"
-	mqttclient2 "github.com/ssrs100/buleserver1/mqttclient"
+	"github.com/ssrs100/blueserver/awsmqtt"
+	"github.com/ssrs100/blueserver/bluedb"
+	"github.com/ssrs100/blueserver/controller"
+	"github.com/ssrs100/blueserver/controller/aws"
+	"github.com/ssrs100/blueserver/mqttclient"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -48,43 +49,43 @@ func (s *Server) RegisterRoutes() *httprouter.Router {
 	router.GET("/v1/heart", Health)
 
 	// Routes for users
-	router.GET("/v1/users", controller2.GetUsers)
-	router.GET("/v1/users/:projectId", controller2.GetUser)
-	router.POST("/v1/users", controller2.CreateUser)
-	router.POST("/v1/users/login", controller2.UserLogin)
-	router.DELETE("/v1/users/:projectId", controller2.DeleteUser)
+	router.GET("/v1/users", controller.GetUsers)
+	router.GET("/v1/users/:projectId", controller.GetUser)
+	router.POST("/v1/users", controller.CreateUser)
+	router.POST("/v1/users/login", controller.UserLogin)
+	router.DELETE("/v1/users/:projectId", controller.DeleteUser)
 
 	// Routes for beacons
-	router.POST("/proximity/v1/:projectId/beacons", controller2.RegisterBeacon)
-	router.GET("/proximity/v1/:projectId/beacons", controller2.ListBeacons)
-	router.DELETE("/proximity/v1/:projectId/beacons/:beaconId", controller2.DeleteBeacon)
-	router.PUT("/proximity/v1/:projectId/beacons/:beaconId", controller2.UpdateBeacon)
-	router.POST("/proximity/v1/:projectId/beacons/:beaconId/active", controller2.ActiveBeancon)
-	router.POST("/proximity/v1/:projectId/beacons/:beaconId/deactive", controller2.DeActiveBeancon)
+	router.POST("/proximity/v1/:projectId/beacons", controller.RegisterBeacon)
+	router.GET("/proximity/v1/:projectId/beacons", controller.ListBeacons)
+	router.DELETE("/proximity/v1/:projectId/beacons/:beaconId", controller.DeleteBeacon)
+	router.PUT("/proximity/v1/:projectId/beacons/:beaconId", controller.UpdateBeacon)
+	router.POST("/proximity/v1/:projectId/beacons/:beaconId/active", controller.ActiveBeancon)
+	router.POST("/proximity/v1/:projectId/beacons/:beaconId/deactive", controller.DeActiveBeancon)
 
 	// Routes for attachments
-	router.POST("/proximity/v1/:projectId/beacons/:beaconId/attachments", controller2.CreateAttachment)
-	router.DELETE("/proximity/v1/:projectId/beacons/:beaconId/attachments/:attachmentId", controller2.DeleteAttachment)
-	router.DELETE("/proximity/v1/:projectId/beacons/:beaconId/attachments", controller2.DeleteAttachmentByBeacon)
-	router.GET("/proximity/v1/:projectId/beacons/:beaconId/attachments", controller2.GetAttachmentByBeacon)
+	router.POST("/proximity/v1/:projectId/beacons/:beaconId/attachments", controller.CreateAttachment)
+	router.DELETE("/proximity/v1/:projectId/beacons/:beaconId/attachments/:attachmentId", controller.DeleteAttachment)
+	router.DELETE("/proximity/v1/:projectId/beacons/:beaconId/attachments", controller.DeleteAttachmentByBeacon)
+	router.GET("/proximity/v1/:projectId/beacons/:beaconId/attachments", controller.GetAttachmentByBeacon)
 
 	// Routes for hybrid
-	router.POST("/proximity/v1/:projectId/getforobserved", controller2.GetForObserved)
+	router.POST("/proximity/v1/:projectId/getforobserved", controller.GetForObserved)
 
 	// Routes for components
-	router.POST("/equipment/v1/:projectId/components", controller2.RegisterComponent)
-	router.GET("/equipment/v1/:projectId/components", controller2.ListComponents)
-	router.DELETE("/equipment/v1/:projectId/components/:componentId", controller2.DeleteComponent)
-	router.PUT("/equipment/v1/:projectId/components/:componentId", controller2.UpdateComponent)
-	router.GET("/equipment/v1/:projectId/components/:componentId/collections", controller2.ListCollections)
+	router.POST("/equipment/v1/:projectId/components", controller.RegisterComponent)
+	router.GET("/equipment/v1/:projectId/components", controller.ListComponents)
+	router.DELETE("/equipment/v1/:projectId/components/:componentId", controller.DeleteComponent)
+	router.PUT("/equipment/v1/:projectId/components/:componentId", controller.UpdateComponent)
+	router.GET("/equipment/v1/:projectId/components/:componentId/collections", controller.ListCollections)
 
 	// Routes for component detail
-	router.GET("/equipment/v1/:projectId/components/:componentId/detail", controller2.GetComponentDetail)
-	router.PUT("/equipment/v1/:projectId/components/:componentId/detail", controller2.UpdateComponentDetail)
-	router.PUT("/equipment/v1/:projectId/components/:componentId/detail/cancel-modifying", controller2.CancelUpdateDetail)
-	router.PUT("/equipment/v1/:projectId/components/:componentId/detail/sync", controller2.SyncComponentDetail)
+	router.GET("/equipment/v1/:projectId/components/:componentId/detail", controller.GetComponentDetail)
+	router.PUT("/equipment/v1/:projectId/components/:componentId/detail", controller.UpdateComponentDetail)
+	router.PUT("/equipment/v1/:projectId/components/:componentId/detail/cancel-modifying", controller.CancelUpdateDetail)
+	router.PUT("/equipment/v1/:projectId/components/:componentId/detail/sync", controller.SyncComponentDetail)
 
-	router.GET("/aws/v1/:projectId/things", aws2.ListThings)
+	router.GET("/aws/v1/:projectId/things", aws.ListThings)
 	return router
 }
 
@@ -95,7 +96,7 @@ func Start() error {
 	logs.InitLog()
 	logs.Info("Setting up server...")
 
-	basedir := common.GetAppBaseDir()
+	basedir := utils.GetBasePath()
 	if len(basedir) == 0 {
 		logs.Error("Evironment APP_BASE_DIR(app installed root path) should be set.")
 		os.Exit(1)
@@ -110,14 +111,14 @@ func Start() error {
 		os.Exit(1)
 	}
 
-	err := bluedb2.InitDB(s.configure.GetString("db_host"), s.configure.GetInt("db_port"))
+	err := bluedb.InitDB(s.configure.GetString("db_host"), s.configure.GetInt("db_port"))
 	if err != nil {
 		errStr := fmt.Sprintf("Can not init db %s.", err.Error())
 		logs.Error(errStr)
 		os.Exit(1)
 	}
 
-	mc := mqttclient2.InitClient(s.configure)
+	mc := mqttclient.InitClient(s.configure)
 	mc.Start()
 
 	awsmqtt.InitAwsClient()

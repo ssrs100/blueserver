@@ -1,9 +1,10 @@
 package bluedb
 
 import (
+	"github.com/astaxie/beego/orm"
 	_ "github.com/go-sql-driver/mysql" // import your used driver
+	"github.com/jack0liu/logs"
 	"github.com/satori/go.uuid"
-	"github.com/ssrs100/orm"
 	"time"
 )
 
@@ -22,17 +23,17 @@ func CreateComponent(component Component) string {
 	o := orm.NewOrm()
 	u2, err := uuid.NewV4()
 	if err != nil {
-		log.Error("create component uuid wrong: %s", err.Error())
+		logs.Error("create component uuid wrong: %s", err.Error())
 		return ""
 	}
 	component.Id = u2.String()
 	// insert
 	_, err = o.Insert(&component)
 	if err != nil {
-		log.Error("create component fail.component: %v", err.Error())
+		logs.Error("create component fail.component: %v", err.Error())
 		return ""
 	}
-	log.Info("create component id: %v", component.Id)
+	logs.Info("create component id: %v", component.Id)
 	return component.Id
 }
 
@@ -42,18 +43,18 @@ func DeleteComponent(id string) error {
 	if _, err := o.Delete(&b); err != nil {
 		return err
 	}
-	log.Info("delete component: %v", id)
+	logs.Info("delete component: %v", id)
 	return nil
 }
 
 func UpdateComponent(com Component) error {
 	o := orm.NewOrm()
 	if _, err := o.Update(&com, "name", "component_password"); err != nil {
-		log.Error("update component(%s) fail, err:%s", com.Id, err.Error())
+		logs.Error("update component(%s) fail, err:%s", com.Id, err.Error())
 		return err
 	}
 
-	log.Info("update component success, id:%v", com.Id)
+	logs.Info("update component success, id:%v", com.Id)
 	return nil
 }
 
@@ -93,7 +94,7 @@ func QueryComponents(params map[string]interface{}) []Component {
 	qs = qs.OrderBy("create_at")
 	_, err := qs.All(&components)
 	if err != nil {
-		log.Error("query components fail, err:%s", err.Error())
+		logs.Error("query components fail, err:%s", err.Error())
 	}
 	return components
 }
@@ -102,7 +103,7 @@ func QueryComponentById(id string) (u *Component, err error) {
 	o := orm.NewOrm()
 	component := Component{Id: id}
 	if err := o.Read(&component); err != nil {
-		log.Error("query component(%s) fail: %v", id, err.Error())
+		logs.Error("query component(%s) fail: %v", id, err.Error())
 		return nil, err
 	}
 	return &component, nil
@@ -115,12 +116,12 @@ func QueryComponentByMac(mac string) *Component {
 	qs = qs.Filter("mac_addr", mac)
 	_, err := qs.All(&components)
 	if err != nil {
-		log.Error("query components fail, err:%s", err.Error())
+		logs.Error("query components fail, err:%s", err.Error())
 		return nil
 	}
 
 	if len(components) <= 0 {
-		log.Warn("query components by mac get none, mac:%s", mac)
+		logs.Warn("query components by mac get none, mac:%s", mac)
 		return nil
 	}
 
@@ -135,12 +136,12 @@ func QueryComponentByMacAndType(mac, addr_type string) *Component {
 	qs = qs.Filter("type", addr_type)
 	_, err := qs.All(&components)
 	if err != nil {
-		log.Error("query components fail, err:%s", err.Error())
+		logs.Error("query components fail, err:%s", err.Error())
 		return nil
 	}
 
 	if len(components) <= 0 {
-		log.Warn("query components by mac get none, mac:%s", mac)
+		logs.Warn("query components by mac get none, mac:%s", mac)
 		return nil
 	}
 

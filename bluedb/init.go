@@ -2,7 +2,7 @@ package bluedb
 
 import (
 	"fmt"
-	"github.com/ssrs100/orm"
+	"github.com/astaxie/beego/orm"
 )
 
 func InitDB(host string, port int) error {
