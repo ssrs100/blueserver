@@ -6,14 +6,13 @@ import (
 	"github.com/jack0liu/conf"
 	"github.com/jack0liu/logs"
 	"github.com/jack0liu/utils"
-	"github.com/kuzemkon/aws-iot-device-sdk-go/device"
 	"path/filepath"
 )
 
 var (
-	reportChan chan device.Shadow
-	shadowChan chan device.Shadow
-	awsClient  *device.Client
+	reportChan chan Shadow
+	shadowChan chan Shadow
+	awsClient  *Client
 )
 
 type ReportData struct {
@@ -26,8 +25,8 @@ type ReportData struct {
 
 func InitAwsClient() {
 	baseDir := utils.GetBasePath()
-	client, err := device.NewClient(
-		device.KeyPair{
+	client, err := NewClient(
+		KeyPair{
 			PrivateKeyPath:    filepath.Join(baseDir, "conf", "private.pem.key"),
 			CertificatePath:   filepath.Join(baseDir, "conf", "certificate.pem.crt"),
 			CACertificatePath: filepath.Join(baseDir, "conf", "AmazonRootCA1.pem"),
