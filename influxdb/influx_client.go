@@ -65,6 +65,7 @@ func GetLatest(table string, device string) (fields map[string]interface{}, err 
 		return nil, err
 	}
 	for _, v := range response.Results {
+		logs.Info("%v", v.Series[0].Values[0])
 		bs, err := v.MarshalJSON()
 		if err != nil {
 			logs.Info("%s", err.Error())
