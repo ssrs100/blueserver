@@ -7,6 +7,7 @@ import (
 	"github.com/jack0liu/utils"
 	"github.com/ssrs100/blueserver/influxdb"
 	"path/filepath"
+	"time"
 )
 
 var (
@@ -61,11 +62,11 @@ func startAwsClient() {
 				}
 				fields := make(map[string]interface{})
 				fields["device"] = rd.Device
-				fields["timestamp"] = rd.Timestamp
 				fields["temperature"] = rd.Temperature
 				fields["humidity"] = rd.Humidity
 				fields["rssi"] = rd.Rssi
-				if err := influxdb.Insert("temperature", fields); err != nil {
+				rdTime := time.Unix(0, rd.Timestamp*1000000)
+				if err := influxdb.Insert("temperature", fields, &rdTime); err != nil {
 					logs.Error("%s", err.Error())
 					continue
 				}

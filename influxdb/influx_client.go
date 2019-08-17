@@ -33,13 +33,13 @@ func InitFlux() {
 	influx.c = con
 }
 
-func Insert(table string, fields map[string]interface{}) error {
+func Insert(table string, fields map[string]interface{}, rTime *time.Time) error {
 	pts := make([]client.Point, 0)
 	p := client.Point{
 		Measurement: table,
 		Fields:      fields,
-		Time:        time.Now(),
-		Precision:   "ms",
+		Time:        *rTime,
+		Precision:   "ns",
 	}
 	pts = append(pts, p)
 
