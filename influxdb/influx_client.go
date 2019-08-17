@@ -18,6 +18,14 @@ type ReportData struct {
 	Humidity    int    `json:"humidity"`
 }
 
+type OutData struct {
+	Device      string `json:"device"`
+	Timestamp   string `json:"timestamp"`
+	Rssi        string `json:"rssi"`
+	Temperature string `json:"temperature"`
+	Humidity    string `json:"humidity"`
+}
+
 type InfluxClient struct {
 	c *client.Client
 }
@@ -81,7 +89,7 @@ func Insert(table string, data *ReportData) error {
 	return nil
 }
 
-func GetLatest(table string, device string) (data *ReportData, err error) {
+func GetLatest(table string, device string) (data *OutData, err error) {
 	q := client.Query{
 		Command: fmt.Sprintf("select %s from %s where device='%s' "+
 			"order by time desc limit 1", columnStr, table, device),
@@ -102,12 +110,12 @@ func GetLatest(table string, device string) (data *ReportData, err error) {
 				continue
 			}
 			logs.Debug("%v", data)
-			ret := ReportData{}
-			ret.Timestamp, _ = data[0].(int64)
+			ret := OutData{}
+			ret.Timestamp, _ = data[0].(string)
 			ret.Device, _ = data[1].(string)
-			ret.Humidity, _ = data[2].(int)
-			ret.Rssi, _ = data[3].(int)
-			ret.Temperature, _ = data[4].(int)
+			ret.Humidity, _ = data[2].(string)
+			ret.Rssi, _ = data[3].(string)
+			ret.Temperature, _ = data[4].(string)
 			return &ret, nil
 		}
 	}
