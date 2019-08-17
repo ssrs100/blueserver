@@ -21,9 +21,9 @@ type ReportData struct {
 type OutData struct {
 	Device      string `json:"device"`
 	Timestamp   string `json:"timestamp"`
-	Rssi        string `json:"rssi"`
-	Temperature string `json:"temperature"`
-	Humidity    string `json:"humidity"`
+	Rssi        int    `json:"rssi"`
+	Temperature int32  `json:"temperature"`
+	Humidity    int64  `json:"humidity"`
 }
 
 type InfluxClient struct {
@@ -113,9 +113,9 @@ func GetLatest(table string, device string) (data *OutData, err error) {
 			ret := OutData{}
 			ret.Timestamp, _ = data[0].(string)
 			ret.Device, _ = data[1].(string)
-			ret.Humidity, _ = data[2].(string)
-			ret.Rssi, _ = data[3].(string)
-			ret.Temperature, _ = data[4].(string)
+			ret.Humidity, _ = data[2].(int64)
+			ret.Rssi, _ = data[3].(int)
+			ret.Temperature, _ = data[4].(int32)
 			return &ret, nil
 		}
 	}
