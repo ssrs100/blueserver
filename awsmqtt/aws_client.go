@@ -97,8 +97,8 @@ func InitSns() {
 	sess := session.Must(session.NewSession())
 
 	creds := credentials.NewStaticCredentials(
-		"AKIAW7NVRWDYGTKQEM6G",
-		"BdfR8KliCkW+p2IFBwC8zlm02bOXColzYgr4zpYS",
+		"AKIAWBVH7ITHXEYJ47V4",
+		"9VRskVkinzbHzLZLNRCXYr1P0bdmFO8sLw/Y9auF",
 		"",
 	)
 	snsClient = sns.New(sess, &aws.Config{Credentials: creds, Region: aws.String("us-west-2")})
@@ -140,6 +140,7 @@ func sendNotifyMsg(data *influxdb.ReportData) {
 		logs.Error("expect awserr code:%v, msg:%s", aerr.Code(), aerr.Message())
 		return
 	}
+	logs.Info("send(%s) notify to sns success", data.Device)
 	n := bluedb.Notify{
 		Device:  data.Device,
 		Noticed: "1",
@@ -175,6 +176,7 @@ func sendCleanMsg(data *influxdb.ReportData) {
 		logs.Error("expect awserr code:%v, msg:%s", aerr.Code(), aerr.Message())
 		return
 	}
+	logs.Info("send(%s) clean to sns success", data.Device)
 	deviceSnsCache.Delete(data.Device)
 	bluedb.DeleteNotice(data.Device)
 }
