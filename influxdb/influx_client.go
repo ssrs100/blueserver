@@ -140,6 +140,7 @@ func GetDataByTime(table string, thing, startAt, endAt string) (datas []*OutData
 			"order by time desc", columnStr, table, startAt, endAt, thing),
 		Database: dbName,
 	}
+	logs.Debug("%s", q.Command)
 	response, err := influx.c.Query(q)
 	if err != nil {
 		return nil, err

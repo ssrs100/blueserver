@@ -62,11 +62,10 @@ func (store *NoOpStore) Reset() {
 }
 
 type MQTTClient struct {
-	c      mqtt.Client
-	config *conf.Config
+	c mqtt.Client
 }
 
-func InitClient(conf *conf.Config) *MQTTClient {
+func InitClient() *MQTTClient {
 	myNoOpStore := &NoOpStore{}
 	//tlsConf := &tls.Config{
 	//	InsecureSkipVerify: true,
@@ -88,8 +87,7 @@ func InitClient(conf *conf.Config) *MQTTClient {
 	opts.SetPassword(admin.Passwd)
 
 	Client = &MQTTClient{
-		config: conf,
-		c:      mqtt.NewClient(opts),
+		c: mqtt.NewClient(opts),
 	}
 	return Client
 }
@@ -141,7 +139,7 @@ func (mc *MQTTClient) UnSubscribe(clientID string) {
 }
 
 func (mc *MQTTClient) NotifyUserAdd(name, password, id string) {
-	brokerHost := mc.config.GetString("mqtt_broker")
+	brokerHost := conf.GetString("mqtt_broker")
 	endpoint := "http://" + brokerHost + ":" + HttpPort + "/v1/users"
 	logs.Debug("Notify user add endpoint:%s", endpoint)
 	userMap := make(map[string]interface{})
@@ -192,7 +190,7 @@ func (mc *MQTTClient) NotifyUserAdd(name, password, id string) {
 }
 
 func (mc *MQTTClient) NotifyUserDelete(name string) {
-	brokerHost := mc.config.GetString("mqtt_broker")
+	brokerHost := conf.GetString("mqtt_broker")
 	endpoint := "http://" + brokerHost + ":" + HttpPort + "/v1/users/" + name
 	logs.Debug("Notify user delete endpoint:%s", endpoint)
 

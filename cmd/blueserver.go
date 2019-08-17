@@ -23,7 +23,6 @@ var (
 
 // Config struct provides configuration fields for the server.
 type Server struct {
-	configure *conf.Config
 }
 
 var s Server
@@ -104,34 +103,31 @@ func Start() error {
 
 	//获取配置信息
 	appConfig := filepath.Join(basedir, "conf", server_config)
-	s.configure = conf.LoadFile(appConfig)
-	if s.configure == nil {
-		errStr := fmt.Sprintf("Can not load %s.", server_config)
-		logs.Error(errStr)
+	if err := conf.Init(appConfig); err != nil {
+		logs.Error("appConfig %s not found", appConfig)
 		os.Exit(1)
 	}
-
-	err := bluedb.InitDB(s.configure.GetString("db_host"), s.configure.GetInt("db_port"))
+	err := bluedb.InitDB(conf.GetString("db_host"), conf.GetInt("db_port"))
 	if err != nil {
 		errStr := fmt.Sprintf("Can not init db %s.", err.Error())
 		logs.Error(errStr)
 		os.Exit(1)
 	}
 
-	mc := mqttclient.InitClient(s.configure)
+	mc := mqttclient.InitClient()
 	mc.Start()
 
 	influxdb.InitFlux()
 
 	router := s.RegisterRoutes()
-	host := s.configure.GetString("host")
-	port := s.configure.GetInt("port")
+	host := conf.GetString("host")
+	port := conf.GetInt("port")
 	server := &http.Server{Addr: host + ":" + strconv.Itoa(port), Handler: router}
 
 	logs.Debug("Starting server on port %d", port)
 
-	certPath := filepath.Join(basedir, "conf", s.configure.GetString("cert"))
-	keyPath := filepath.Join(basedir, "conf", s.configure.GetString("key"))
+	certPath := filepath.Join(basedir, "conf", conf.GetString("cert"))
+	keyPath := filepath.Join(basedir, "conf", conf.GetString("key"))
 
 	err = server.ListenAndServeTLS(certPath, keyPath)
 	if err != nil {
