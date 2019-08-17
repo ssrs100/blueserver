@@ -6,7 +6,6 @@ import (
 	"github.com/jack0liu/conf"
 	"github.com/jack0liu/logs"
 	"github.com/jack0liu/utils"
-	"github.com/ssrs100/blueserver/awsmqtt"
 	"github.com/ssrs100/blueserver/bluedb"
 	"github.com/ssrs100/blueserver/controller"
 	"github.com/ssrs100/blueserver/controller/aws"
@@ -119,8 +118,6 @@ func Start() error {
 
 	mc := mqttclient.InitClient(s.configure)
 	mc.Start()
-
-	awsmqtt.InitAwsClient()
 
 	router := s.RegisterRoutes()
 	host := s.configure.GetString("host")
