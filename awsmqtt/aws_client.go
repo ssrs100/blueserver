@@ -16,10 +16,10 @@ var (
 
 type ReportData struct {
 	Device      string `json:"device"`
-	Timestamp   string `json:"timestamp"`
-	Rssi        string `json:"rssi"`
-	Temperature string `json:"temperature"`
-	Humidity    string `json:"humidity"`
+	Timestamp   int64  `json:"timestamp"`
+	Rssi        int    `json:"rssi"`
+	Temperature int    `json:"temperature"`
+	Humidity    int    `json:"humidity"`
 }
 
 func InitAwsClient() {
@@ -55,10 +55,10 @@ func startAwsClient() {
 			} else {
 				var rd ReportData
 				if err := json.Unmarshal(s, &rd); err != nil {
-					logs.Error("err:", err.Error())
+					logs.Error("err:%s", err.Error())
 					continue
 				}
-				logs.Debug(string(s))
+				logs.Debug("%s", string(s))
 			}
 		}
 	}
