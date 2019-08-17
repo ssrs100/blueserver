@@ -57,7 +57,31 @@ func Insert(table string, fields map[string]interface{}, rTime *time.Time) error
 
 func GetLatest(table string, device string) (fields map[string]interface{}, err error) {
 	q := client.Query{
-		Command:  fmt.Sprintf("select * from %s where device='%s' order by time desc limit 1", table, device),
+		Command: fmt.Sprintf("select time,device,humidity,rssi,temperature from %s where device='%s' "+
+			"order by time desc limit 2", table, device),
+		Database: dbName,
+	}
+	response, err := influx.c.Query(q)
+	if err != nil {
+		return nil, err
+	}
+	for _, v := range response.Results {
+		logs.Info("%v", v.Series[0].Values[0])
+		bs, err := v.MarshalJSON()
+		if err != nil {
+			logs.Info("%s", err.Error())
+			continue
+		}
+		logs.Info("%s", string(bs))
+	}
+
+	return nil, nil
+}
+
+func GetDataByTime(table string, device, startAt, endAt string) (fields map[string]interface{}, err error) {
+	q := client.Query{
+		Command: fmt.Sprintf("select * from %s where time >= '%s' and time < '%s' device='%s' "+
+			"order by time desc", table, startAt, endAt, device),
 		Database: dbName,
 	}
 	response, err := influx.c.Query(q)
