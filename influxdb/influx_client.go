@@ -1,11 +1,13 @@
 package influxdb
 
 import (
+	"encoding/json"
 	"fmt"
 	client "github.com/influxdata/influxdb1-client"
 	"github.com/jack0liu/conf"
 	"github.com/jack0liu/logs"
 	"net/url"
+	"reflect"
 	"strings"
 	"time"
 )
@@ -19,11 +21,11 @@ type ReportData struct {
 }
 
 type OutData struct {
-	Device      string `json:"device"`
-	Timestamp   string `json:"timestamp"`
-	Rssi        string `json:"rssi"`
-	Temperature string `json:"temperature"`
-	Humidity    string `json:"humidity"`
+	Device      string      `json:"device"`
+	Timestamp   string      `json:"timestamp"`
+	Rssi        json.Number `json:"rssi"`
+	Temperature json.Number `json:"temperature"`
+	Humidity    json.Number `json:"humidity"`
 }
 
 type InfluxClient struct {
@@ -109,13 +111,33 @@ func GetLatest(table string, device string) (data *OutData, err error) {
 				logs.Warn("columns less %d", len(columns))
 				continue
 			}
+			for _, a := range data {
+				logs.Debug("%s", reflect.TypeOf(a).Name())
+				logs.Debug("%s", reflect.TypeOf(a).Kind())
+				switch a.(type) {
+				case int:
+					logs.Debug("int")
+				case int32:
+					logs.Debug("int32")
+				case int64:
+					logs.Debug("int64")
+				case float32:
+					logs.Debug("float32")
+				case float64:
+					logs.Debug("float64")
+				case json.Number:
+					logs.Debug("json Number")
+				case string:
+					logs.Debug("string")
+				}
+			}
 			logs.Debug("%v", data)
 			ret := OutData{}
 			ret.Timestamp, _ = data[0].(string)
 			ret.Device, _ = data[1].(string)
-			ret.Humidity, _ = data[2].(string)
-			ret.Rssi, _ = data[3].(string)
-			ret.Temperature, _ = data[4].(string)
+			ret.Humidity, _ = data[2].(json.Number)
+			ret.Rssi, _ = data[3].(json.Number)
+			ret.Temperature, _ = data[4].(json.Number)
 			return &ret, nil
 		}
 	}
