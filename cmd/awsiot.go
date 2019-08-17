@@ -12,7 +12,10 @@ import (
 const (
 	awsIotConfig = "awsiot.json"
 )
+
 func main() {
+	logs.InitLog()
+	logs.Info("Setting up awsiot...")
 	baseDir := utils.GetBasePath()
 	if err := conf.Init(filepath.Join(baseDir, "conf", awsIotConfig)); err != nil {
 		logs.Error("%s", err.Error())
