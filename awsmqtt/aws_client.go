@@ -7,7 +7,6 @@ import (
 	"github.com/jack0liu/utils"
 	"github.com/ssrs100/blueserver/influxdb"
 	"path/filepath"
-	"time"
 )
 
 var (
@@ -15,14 +14,6 @@ var (
 	shadowChan chan Shadow
 	awsClient  *Client
 )
-
-type ReportData struct {
-	Device      string `json:"device"`
-	Timestamp   int64  `json:"timestamp"`
-	Rssi        int    `json:"rssi"`
-	Temperature int    `json:"temperature"`
-	Humidity    int    `json:"humidity"`
-}
 
 func InitAwsClient() {
 	baseDir := utils.GetBasePath()
@@ -55,27 +46,23 @@ func startAwsClient() {
 			if !ok {
 				logs.Debug("failed to read from shadow channel")
 			} else {
-				var rd ReportData
+				var rd influxdb.ReportData
 				if err := json.Unmarshal(s, &rd); err != nil {
 					logs.Error("err:%s", err.Error())
 					continue
 				}
-				fields := make(map[string]interface{})
-				fields["device"] = rd.Device
-				fields["temperature"] = rd.Temperature
-				fields["humidity"] = rd.Humidity
-				fields["rssi"] = rd.Rssi
-				rdTime := time.Unix(0, rd.Timestamp*1000000)
-				if err := influxdb.Insert("temperature", fields, &rdTime); err != nil {
+				if err := influxdb.Insert("temperature", &rd); err != nil {
 					logs.Error("%s", err.Error())
 					continue
 				}
-				if _, err := influxdb.GetLatest("temperature", "DC0D30AABB02"); err != nil {
+				logs.Debug("insert influxdb success")
+				if d, err := influxdb.GetLatest("temperature", "DC0D30AABB02"); err != nil {
 					logs.Error("%s", err.Error())
 					continue
+				} else {
+					logs.Debug("latest:%v", *d)
 				}
 
-				logs.Debug("insert influxdb success")
 			}
 		}
 	}
