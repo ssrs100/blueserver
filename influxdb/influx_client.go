@@ -112,6 +112,7 @@ func GetLatest(table string, device string) (data *OutData, err error) {
 			}
 			for _, a := range data {
 				logs.Debug("%s", reflect.TypeOf(a).Name())
+				logs.Debug("%s", reflect.TypeOf(a).Kind())
 			}
 			logs.Debug("%v", data)
 			ret := OutData{}
