@@ -6,6 +6,7 @@ import (
 	"github.com/jack0liu/conf"
 	"github.com/jack0liu/logs"
 	"net/url"
+	"reflect"
 	"strings"
 	"time"
 )
@@ -108,6 +109,9 @@ func GetLatest(table string, device string) (data *OutData, err error) {
 			if len(data) < len(columns) {
 				logs.Warn("columns less %d", len(columns))
 				continue
+			}
+			for _, a := range data {
+				logs.Debug("%s", reflect.TypeOf(a).Name())
 			}
 			logs.Debug("%v", data)
 			ret := OutData{}
