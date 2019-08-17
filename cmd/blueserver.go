@@ -6,7 +6,6 @@ import (
 	"github.com/jack0liu/conf"
 	"github.com/jack0liu/logs"
 	"github.com/jack0liu/utils"
-	"github.com/julienschmidt/httprouter"
 	"github.com/ssrs100/blueserver/awsmqtt"
 	"github.com/ssrs100/blueserver/bluedb"
 	"github.com/ssrs100/blueserver/controller"
