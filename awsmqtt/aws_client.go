@@ -124,7 +124,7 @@ func sendNotifyMsg(data *influxdb.ReportData) {
 
 	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelFn()
-	msg := fmt.Sprintf(msgTemplate, data.Device, data.Temperature, data.Thing)
+	msg := fmt.Sprintf(msgTemplate, data.Device, data.Thing, data.Temperature)
 	params := &sns.PublishInput{
 		Message:  aws.String(msg),
 		TopicArn: aws.String("arn:aws:sns:us-west-2:415890359503:email"),
@@ -160,7 +160,7 @@ func sendCleanMsg(data *influxdb.ReportData) {
 
 	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelFn()
-	msg := fmt.Sprintf(cleanTemplate, data.Device, data.Temperature, data.Thing)
+	msg := fmt.Sprintf(cleanTemplate, data.Device, data.Thing, data.Temperature)
 	params := &sns.PublishInput{
 		Message:  aws.String(msg),
 		TopicArn: aws.String("arn:aws:sns:us-west-2:415890359503:email"),
