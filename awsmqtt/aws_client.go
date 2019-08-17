@@ -2,7 +2,6 @@ package awsmqtt
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/jack0liu/conf"
 	"github.com/jack0liu/logs"
 	"github.com/jack0liu/utils"
@@ -32,7 +31,7 @@ func InitAwsClient() {
 			CACertificatePath: filepath.Join(baseDir, "conf", "AmazonRootCA1.pem"),
 		},
 		conf.GetStringWithDefault("iot_endpoint", "a359ikotxsoxw8-ats.iot.us-west-2.amazonaws.com"), // AWS IoT endpoint
-		"blueserver",
+		"blueserverclient",
 	)
 	if err != nil {
 		panic(err)
@@ -44,7 +43,7 @@ func InitAwsClient() {
 		panic(err)
 	}
 
-	go startAwsClient()
+	startAwsClient()
 }
 
 func startAwsClient() {
@@ -52,14 +51,14 @@ func startAwsClient() {
 		select {
 		case s, ok := <-reportChan:
 			if !ok {
-				fmt.Println("failed to read from shadow channel")
+				logs.Debug("failed to read from shadow channel")
 			} else {
 				var rd ReportData
 				if err := json.Unmarshal(s, &rd); err != nil {
 					logs.Error("err:", err.Error())
 					continue
 				}
-				fmt.Println(string(s))
+				logs.Debug(string(s))
 			}
 		}
 	}
