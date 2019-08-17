@@ -5,6 +5,7 @@ import (
 	"github.com/jack0liu/logs"
 	"github.com/jack0liu/utils"
 	"github.com/ssrs100/blueserver/awsmqtt"
+	"github.com/ssrs100/blueserver/influxdb"
 	"os"
 	"path/filepath"
 )
@@ -21,5 +22,7 @@ func main() {
 		logs.Error("%s", err.Error())
 		os.Exit(1)
 	}
+	influxdb.InitFlux()
+
 	awsmqtt.InitAwsClient()
 }

@@ -5,6 +5,7 @@ import (
 	"github.com/jack0liu/conf"
 	"github.com/jack0liu/logs"
 	"github.com/jack0liu/utils"
+	"github.com/ssrs100/blueserver/influxdb"
 	"path/filepath"
 )
 
@@ -58,7 +59,16 @@ func startAwsClient() {
 					logs.Error("err:%s", err.Error())
 					continue
 				}
-				logs.Debug("%s", string(s))
+				fields := make(map[string]interface{})
+				fields["device"] = rd.Device
+				fields["timestamp"] = rd.Timestamp
+				fields["temperature"] = rd.Temperature
+				fields["humidity"] = rd.Humidity
+				fields["rssi"] = rd.Rssi
+				if err := influxdb.Insert("blue", fields); err != nil {
+					logs.Error("%s", err.Error())
+				}
+				logs.Debug("insert influxdb success")
 			}
 		}
 	}
