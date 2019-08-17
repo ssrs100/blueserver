@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jack0liu/logs"
-	"github.com/julienschmidt/httprouter"
 	"github.com/ssrs100/blueserver/bluedb"
 	"net/http"
 	"time"
