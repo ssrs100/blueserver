@@ -13,6 +13,8 @@ import (
 	"github.com/jack0liu/conf"
 	"github.com/jack0liu/logs"
 	"github.com/jack0liu/utils"
+	"github.com/patrickmn/go-cache"
+	"github.com/ssrs100/blueserver/bluedb"
 	"github.com/ssrs100/blueserver/influxdb"
 	"path/filepath"
 	"time"
@@ -26,9 +28,18 @@ var (
 	reportChan chan Shadow
 	shadowChan chan Shadow
 	awsClient  *Client
+	snsClient  *sns.SNS
 )
 
-var msgTemplate = "device(%s) temperature is %d, it has exceeded threshold, please pay attention to it."
+var msgTemplate = "[notice]device(%s) temperature is %d, it has exceeded threshold, please pay attention to it."
+
+var cleanTemplate = "[clean]device(%s) temperature is %d, it drops below threshold."
+
+var deviceSnsCache *cache.Cache
+
+func init() {
+	deviceSnsCache = cache.New(24*time.Hour, 30*time.Minute)
+}
 
 func InitAwsClient() {
 	baseDir := utils.GetBasePath()
@@ -71,8 +82,10 @@ func startAwsClient() {
 					logs.Error("%s", err.Error())
 					continue
 				}
-				if rd.Temperature > tempThresh {
-					go sendSns(&rd)
+				if rd.Temperature >= tempThresh {
+					go sendSns(&rd, false)
+				} else {
+					go sendSns(&rd, true)
 				}
 				logs.Debug("insert influxdb success")
 			}
@@ -80,7 +93,7 @@ func startAwsClient() {
 	}
 }
 
-func sendSns(data *influxdb.ReportData) {
+func InitSns() {
 	sess := session.Must(session.NewSession())
 
 	creds := credentials.NewStaticCredentials(
@@ -88,7 +101,27 @@ func sendSns(data *influxdb.ReportData) {
 		"BdfR8KliCkW+p2IFBwC8zlm02bOXColzYgr4zpYS",
 		"",
 	)
-	svc := sns.New(sess, &aws.Config{Credentials: creds, Region: aws.String("us-west-2")})
+	snsClient = sns.New(sess, &aws.Config{Credentials: creds, Region: aws.String("us-west-2")})
+}
+
+func sendSns(data *influxdb.ReportData, isClean bool) {
+	if isClean {
+		sendCleanMsg(data)
+	} else {
+		sendNotifyMsg(data)
+	}
+}
+
+func sendNotifyMsg(data *influxdb.ReportData) {
+	_, ok := deviceSnsCache.Get(data.Device)
+	if ok {
+		return
+	}
+	d, _ := bluedb.QueryNoticeByDevice(data.Device)
+	if d != nil {
+		return
+	}
+
 	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelFn()
 	msg := fmt.Sprintf(msgTemplate, data.Device, data.Temperature)
@@ -96,7 +129,7 @@ func sendSns(data *influxdb.ReportData) {
 		Message:  aws.String(msg),
 		TopicArn: aws.String("arn:aws:sns:us-west-2:415890359503:email"),
 	}
-	_, err := svc.PublishWithContext(ctx, params)
+	_, err := snsClient.PublishWithContext(ctx, params)
 	if err != nil {
 		logs.Error("publish err:%s", err.Error())
 		aerr, ok := err.(awserr.RequestFailure)
@@ -105,6 +138,43 @@ func sendSns(data *influxdb.ReportData) {
 			return
 		}
 		logs.Error("expect awserr code:%v, msg:%s", aerr.Code(), aerr.Message())
+		return
+	}
+	n := bluedb.Notify{
+		Device:  data.Device,
+		Noticed: "1",
+	}
+	deviceSnsCache.Set(data.Device, "1", cache.DefaultExpiration)
+	bluedb.SaveNotice(n)
+}
+
+func sendCleanMsg(data *influxdb.ReportData) {
+	_, ok := deviceSnsCache.Get(data.Device)
+	if !ok {
+		d, _ := bluedb.QueryNoticeByDevice(data.Device)
+		if d == nil {
+			return
+		}
 	}
 
+	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelFn()
+	msg := fmt.Sprintf(cleanTemplate, data.Device, data.Temperature)
+	params := &sns.PublishInput{
+		Message:  aws.String(msg),
+		TopicArn: aws.String("arn:aws:sns:us-west-2:415890359503:email"),
+	}
+	_, err := snsClient.PublishWithContext(ctx, params)
+	if err != nil {
+		logs.Error("publish err:%s", err.Error())
+		aerr, ok := err.(awserr.RequestFailure)
+		if !ok {
+			logs.Error("expect awserr")
+			return
+		}
+		logs.Error("expect awserr code:%v, msg:%s", aerr.Code(), aerr.Message())
+		return
+	}
+	deviceSnsCache.Delete(data.Device)
+	bluedb.DeleteNotice(data.Device)
 }
