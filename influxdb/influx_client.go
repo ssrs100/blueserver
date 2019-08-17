@@ -39,7 +39,7 @@ func Insert(table string, fields map[string]interface{}, rTime *time.Time) error
 		Measurement: table,
 		Fields:      fields,
 		Time:        *rTime,
-		Precision:   "ns",
+		Precision:   "n",
 	}
 	pts = append(pts, p)
 
