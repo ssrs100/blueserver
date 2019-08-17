@@ -25,7 +25,7 @@ func main() {
 		os.Exit(1)
 	}
 	influxdb.InitFlux()
-	err := bluedb.InitDB(s.configure.GetString("db_host"), s.configure.GetInt("db_port"))
+	err := bluedb.InitDB(conf.GetString("db_host"), conf.GetInt("db_port"))
 	if err != nil {
 		errStr := fmt.Sprintf("Can not init db %s.", err.Error())
 		logs.Error(errStr)
