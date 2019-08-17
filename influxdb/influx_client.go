@@ -4,6 +4,7 @@ import (
 	"fmt"
 	client "github.com/influxdata/influxdb1-client"
 	"github.com/jack0liu/conf"
+	"github.com/jack0liu/logs"
 	"net/url"
 	"time"
 )
@@ -63,6 +64,14 @@ func GetLatest(table string, device string) (fields map[string]interface{}, err 
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(response.Results)
+	for _, v := range response.Results {
+		bs, err := v.MarshalJSON()
+		if err != nil {
+			logs.Info("%s", err.Error())
+			continue
+		}
+		logs.Info("%s", string(bs))
+	}
+
 	return nil, nil
 }

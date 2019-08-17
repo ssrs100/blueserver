@@ -1,3 +1,6 @@
 {
-  "iot_endpoint": "a359ikotxsoxw8-ats.iot.us-west-2.amazonaws.com"
+  "iot_endpoint": "a359ikotxsoxw8-ats.iot.us-west-2.amazonaws.com",
+  "influx_host": "localhost",
+  "temperature_thresh": 30,
+  "humidity_thresh": 30
 }
