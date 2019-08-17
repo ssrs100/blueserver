@@ -7,7 +7,6 @@ import (
 	"github.com/jack0liu/conf"
 	"github.com/jack0liu/logs"
 	"net/url"
-	"reflect"
 	"strings"
 	"time"
 )
@@ -107,45 +106,30 @@ func GetLatest(table string, device string) (data *OutData, err error) {
 			continue
 		}
 		for _, data := range v.Series[0].Values {
-			if len(data) < len(columns) {
-				logs.Warn("columns less %d", len(columns))
-				continue
-			}
-			for _, a := range data {
-				logs.Debug("%s", reflect.TypeOf(a).Name())
-				logs.Debug("%s", reflect.TypeOf(a).Kind())
-				switch a.(type) {
-				case int:
-					logs.Debug("int")
-				case int32:
-					logs.Debug("int32")
-				case int64:
-					logs.Debug("int64")
-				case float32:
-					logs.Debug("float32")
-				case float64:
-					logs.Debug("float64")
-				case json.Number:
-					logs.Debug("json Number")
-				case string:
-					logs.Debug("string")
-				}
-			}
-			logs.Debug("%v", data)
-			ret := OutData{}
-			ret.Timestamp, _ = data[0].(string)
-			ret.Device, _ = data[1].(string)
-			ret.Humidity, _ = data[2].(json.Number)
-			ret.Rssi, _ = data[3].(json.Number)
-			ret.Temperature, _ = data[4].(json.Number)
-			return &ret, nil
+			return getOneData(data), nil
 		}
 	}
 
 	return nil, response.Err
 }
 
-func GetDataByTime(table string, device, startAt, endAt string) (fields map[string]interface{}, err error) {
+func getOneData(data []interface{}) *OutData {
+	if len(data) < len(columns) {
+		logs.Warn("columns less %d", len(columns))
+		return nil
+	}
+	logs.Debug("%v", data)
+	ret := OutData{}
+	ret.Timestamp, _ = data[0].(string)
+	ret.Device, _ = data[1].(string)
+	ret.Humidity, _ = data[2].(json.Number)
+	ret.Rssi, _ = data[3].(json.Number)
+	ret.Temperature, _ = data[4].(json.Number)
+	return &ret
+}
+
+func GetDataByTime(table string, device, startAt, endAt string) (datas []*OutData, err error) {
+	// startAt, endAt like '2019-08-17T06:40:27.995Z'
 	q := client.Query{
 		Command: fmt.Sprintf("select %s from %s where time >= '%s' and time < '%s' device='%s' "+
 			"order by time desc", columnStr, table, startAt, endAt, device),
@@ -155,15 +139,17 @@ func GetDataByTime(table string, device, startAt, endAt string) (fields map[stri
 	if err != nil {
 		return nil, err
 	}
+	retList := make([]*OutData, 0)
 	for _, v := range response.Results {
-		logs.Info("%v", v.Series[0].Values[0])
-		bs, err := v.MarshalJSON()
-		if err != nil {
-			logs.Info("%s", err.Error())
+		if len(v.Series) == 0 {
+			logs.Warn("series is 0")
 			continue
 		}
-		logs.Info("%s", string(bs))
+		for _, data := range v.Series[0].Values {
+			d := getOneData(data)
+			retList = append(retList, d)
+		}
 	}
 
-	return nil, nil
+	return retList, nil
 }
