@@ -65,7 +65,7 @@ func startAwsClient() {
 				fields["temperature"] = rd.Temperature
 				fields["humidity"] = rd.Humidity
 				fields["rssi"] = rd.Rssi
-				rdTime := time.Unix(0, rd.Timestamp*1000000)
+				rdTime := time.Unix(0, rd.Timestamp)
 				if err := influxdb.Insert("temperature", fields, &rdTime); err != nil {
 					logs.Error("%s", err.Error())
 					continue
