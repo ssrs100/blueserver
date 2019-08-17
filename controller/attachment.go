@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jack0liu/logs"
-	"github.com/julienschmidt/httprouter"
 	"github.com/ssrs100/blueserver/bluedb"
 	"io/ioutil"
 	"net/http"
@@ -43,7 +42,7 @@ type CreateAttachmentResponse struct {
 	AttachmentId string `json:"id"`
 }
 
-func CreateAttachment(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+func CreateAttachment(w http.ResponseWriter, req *http.Request, ps map[string]string) {
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		logs.Error("Receive body failed: %v", err.Error())
@@ -61,7 +60,7 @@ func CreateAttachment(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 	}
 	// check beacon info
 
-	beaconId := ps.ByName("beaconId")
+	beaconId := ps["beaconId"]
 	bean, _ := bluedb.QueryBeaconById(beaconId)
 	if bean == nil {
 		strErr := fmt.Sprintf("Beacon(%s) not exist.", beaconId)
@@ -101,8 +100,8 @@ func CreateAttachment(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 	w.WriteHeader(http.StatusOK)
 }
 
-func DeleteAttachment(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	id := ps.ByName("attachmentId")
+func DeleteAttachment(w http.ResponseWriter, req *http.Request, ps map[string]string) {
+	id := ps["attachmentId"]
 	err := bluedb.DeleteAttachment(id)
 	if err != nil {
 		logs.Error("Delete attachment failed: %v", err.Error())
@@ -113,8 +112,8 @@ func DeleteAttachment(w http.ResponseWriter, req *http.Request, ps httprouter.Pa
 
 }
 
-func DeleteAttachmentByBeacon(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	id := ps.ByName("beaconId")
+func DeleteAttachmentByBeacon(w http.ResponseWriter, req *http.Request, ps map[string]string) {
+	id := ps["beaconId"]
 	err := bluedb.DeleteAttachmentByBeacon(id)
 	if err != nil {
 		logs.Error("Delete attachment failed: %v", err.Error())
@@ -124,8 +123,8 @@ func DeleteAttachmentByBeacon(w http.ResponseWriter, req *http.Request, ps httpr
 	w.WriteHeader(http.StatusOK)
 }
 
-func GetAttachmentByBeacon(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	id := ps.ByName("beaconId")
+func GetAttachmentByBeacon(w http.ResponseWriter, req *http.Request, ps map[string]string) {
+	id := ps["beaconId"]
 	param := make(map[string]interface{})
 	param["beacon_id"] = id
 	attachments := bluedb.QueryAttachments(param)

@@ -8,7 +8,6 @@ import (
 	"github.com/aws/aws-sdk-go/private/protocol/json/jsonutil"
 	"github.com/aws/aws-sdk-go/service/iot"
 	"github.com/jack0liu/logs"
-	"github.com/julienschmidt/httprouter"
 	"github.com/ssrs100/blueserver/bluedb"
 	"net/http"
 	"strconv"
@@ -18,8 +17,8 @@ var (
 	region = "us-west-2"
 )
 
-func ListThings(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	projectId := ps.ByName("projectId")
+func ListThings(w http.ResponseWriter, req *http.Request, ps map[string]string) {
+	projectId := ps["projectId"]
 	u, err := bluedb.QueryUserById(projectId)
 	if err != nil {
 		logs.Error("Invalid body. err:%s", err.Error())

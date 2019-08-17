@@ -3,7 +3,6 @@ package controller
 import (
 	"encoding/json"
 	"github.com/jack0liu/logs"
-	"github.com/julienschmidt/httprouter"
 	"github.com/ssrs100/blueserver/bluedb"
 	"github.com/ssrs100/blueserver/common"
 	"github.com/ssrs100/blueserver/model"
@@ -20,7 +19,7 @@ type ComponentModifyMsg struct {
 	Data       string `json:"data"`
 }
 
-func UpdateComponentDetail(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+func UpdateComponentDetail(w http.ResponseWriter, req *http.Request, ps map[string]string) {
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		logs.Error("Receive body failed: %v", err.Error())
@@ -38,7 +37,7 @@ func UpdateComponentDetail(w http.ResponseWriter, req *http.Request, ps httprout
 	}
 
 	// check component info
-	componentId := ps.ByName("componentId")
+	componentId := ps["componentId"]
 	d, err := bluedb.QueryComponentDetailByComponentId(componentId)
 	if err != nil {
 		logs.Info("component(%s) detail not exist, create it.", componentId)
@@ -106,8 +105,8 @@ func UpdateComponentDetail(w http.ResponseWriter, req *http.Request, ps httprout
 	w.WriteHeader(http.StatusOK)
 }
 
-func GetComponentDetail(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	id := ps.ByName("componentId")
+func GetComponentDetail(w http.ResponseWriter, req *http.Request, ps map[string]string) {
+	id := ps["componentId"]
 
 	com, err := bluedb.QueryComponentDetailByComponentId(id)
 	if err != nil {
@@ -123,8 +122,8 @@ func GetComponentDetail(w http.ResponseWriter, req *http.Request, ps httprouter.
 
 }
 
-func CancelUpdateDetail(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	id := ps.ByName("componentId")
+func CancelUpdateDetail(w http.ResponseWriter, req *http.Request, ps map[string]string) {
+	id := ps["componentId"]
 	com, err := bluedb.QueryComponentDetailByComponentId(id)
 	if err != nil {
 		logs.Error("cancel component(%s) detail failed: %v", id, err.Error())
@@ -148,8 +147,8 @@ func CancelUpdateDetail(w http.ResponseWriter, req *http.Request, ps httprouter.
 	w.WriteHeader(http.StatusOK)
 }
 
-func SyncComponentDetail(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	id := ps.ByName("componentId")
+func SyncComponentDetail(w http.ResponseWriter, req *http.Request, ps map[string]string) {
+	id := ps["componentId"]
 	_, err := bluedb.QueryComponentDetailByComponentId(id)
 	if err != nil {
 		logs.Error("sync component(%s) detail failed: %v", id, err.Error())

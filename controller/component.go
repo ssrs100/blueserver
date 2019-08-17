@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jack0liu/logs"
-	"github.com/julienschmidt/httprouter"
 	"github.com/ssrs100/blueserver/bluedb"
 	"github.com/ssrs100/blueserver/common"
 	"github.com/ssrs100/blueserver/mqttclient"
@@ -50,7 +49,7 @@ type CreateComponentResponse struct {
 	ComponentId string `json:"id"`
 }
 
-func RegisterComponent(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+func RegisterComponent(w http.ResponseWriter, req *http.Request, ps map[string]string) {
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		logs.Error("Receive body failed: %v", err.Error())
@@ -73,7 +72,7 @@ func RegisterComponent(w http.ResponseWriter, req *http.Request, ps httprouter.P
 		DefaultHandler.ServeHTTP(w, req, errors.New(strErr), http.StatusBadRequest)
 		return
 	}
-	projectId := ps.ByName("projectId")
+	projectId := ps["projectId"]
 	if len(projectId) == 0 {
 		strErr := fmt.Sprintf("Invalid project_id(%s).", projectId)
 		logs.Error(strErr)
@@ -132,8 +131,8 @@ func RegisterComponent(w http.ResponseWriter, req *http.Request, ps httprouter.P
 	w.WriteHeader(http.StatusOK)
 }
 
-func DeleteComponent(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	id := ps.ByName("componentId")
+func DeleteComponent(w http.ResponseWriter, req *http.Request, ps map[string]string) {
+	id := ps["componentId"]
 
 	com, _ := bluedb.QueryComponentById(id)
 	// unsubscribe if type is gateway
@@ -151,8 +150,8 @@ func DeleteComponent(w http.ResponseWriter, req *http.Request, ps httprouter.Par
 
 }
 
-func ListComponents(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	projectId := ps.ByName("projectId")
+func ListComponents(w http.ResponseWriter, req *http.Request, ps map[string]string) {
+	projectId := ps["projectId"]
 	params := make(map[string]interface{})
 	params["project_id"] = projectId
 
@@ -177,7 +176,7 @@ func ListComponents(w http.ResponseWriter, req *http.Request, ps httprouter.Para
 	json.NewEncoder(w).Encode(b.dbListObjectTrans(components))
 }
 
-func UpdateComponent(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+func UpdateComponent(w http.ResponseWriter, req *http.Request, ps map[string]string) {
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		logs.Error("Receive body failed: %v", err.Error())
@@ -194,7 +193,7 @@ func UpdateComponent(w http.ResponseWriter, req *http.Request, ps httprouter.Par
 		return
 	}
 	// check
-	id := ps.ByName("componentId")
+	id := ps["componentId"]
 	if len(id) == 0 {
 		logs.Error("update component fail, id should be set.")
 		DefaultHandler.ServeHTTP(w, req, errors.New("Component id should be set."), http.StatusBadRequest)

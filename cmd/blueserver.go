@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/dimfeld/httptreemux"
 	"github.com/jack0liu/conf"
 	"github.com/jack0liu/logs"
 	"github.com/jack0liu/utils"
@@ -28,19 +29,18 @@ type Server struct {
 
 var s Server
 
-func Health(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+func Health(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (s *Server) RegisterRoutes() *httprouter.Router {
+func (s *Server) RegisterRoutes() *httptreemux.TreeMux {
 	logs.Debug("Setting route info...")
 
 	// Set the router.
-	router := httprouter.New()
+	router := httptreemux.New()
 
 	// Set router options.
-	router.HandleMethodNotAllowed = true
-	router.HandleOPTIONS = true
+	router.PanicHandler = httptreemux.SimplePanicHandler
 	router.RedirectTrailingSlash = true
 
 	// Set the routes for the application.

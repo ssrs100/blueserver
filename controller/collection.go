@@ -34,9 +34,9 @@ func (b *Collection) dbListObjectTrans(collections []bluedb.Collection) []Collec
 	return ret
 }
 
-func ListCollections(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+func ListCollections(w http.ResponseWriter, req *http.Request, ps map[string]string) {
 	logs.Debug("r.RequestURI:%s", req.RequestURI)
-	componentId := ps.ByName("componentId")
+	componentId := ps["componentId"]
 	params := make(map[string]interface{})
 	params["component_id"] = componentId
 	var t1, t2 time.Time

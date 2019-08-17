@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jack0liu/logs"
-	"github.com/julienschmidt/httprouter"
 	"github.com/ssrs100/blueserver/bluedb"
 	"io/ioutil"
 	"net/http"
@@ -61,7 +60,7 @@ type CreateBeaconResponse struct {
 	BeanId string `json:"id"`
 }
 
-func RegisterBeacon(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+func RegisterBeacon(w http.ResponseWriter, req *http.Request, ps map[string]string) {
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		logs.Error("Receive body failed: %v", err.Error())
@@ -85,7 +84,7 @@ func RegisterBeacon(w http.ResponseWriter, req *http.Request, ps httprouter.Para
 		DefaultHandler.ServeHTTP(w, req, errors.New(strErr), http.StatusBadRequest)
 		return
 	}
-	projectId := ps.ByName("projectId")
+	projectId := ps["projectId"]
 	if len(projectId) == 0 {
 		strErr := fmt.Sprintf("Invalid project_id(%s).", projectId)
 		logs.Error(strErr)
@@ -144,8 +143,8 @@ func getType(t string) string {
 	return ""
 }
 
-func DeleteBeacon(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	id := ps.ByName("beaconId")
+func DeleteBeacon(w http.ResponseWriter, req *http.Request, ps map[string]string) {
+	id := ps["beaconId"]
 	params := make(map[string]interface{})
 	params["beacon_id"] = id
 	if attachments := bluedb.QueryAttachments(params); len(attachments) > 0 {
@@ -164,8 +163,8 @@ func DeleteBeacon(w http.ResponseWriter, req *http.Request, ps httprouter.Params
 
 }
 
-func ListBeacons(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	projectId := ps.ByName("projectId")
+func ListBeacons(w http.ResponseWriter, req *http.Request, ps map[string]string) {
+	projectId := ps["projectId"]
 	params := make(map[string]interface{})
 	params["project_id"] = projectId
 
@@ -186,7 +185,7 @@ func ListBeacons(w http.ResponseWriter, req *http.Request, ps httprouter.Params)
 	json.NewEncoder(w).Encode(b.dbListObjectTrans(beancons))
 }
 
-func UpdateBeacon(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+func UpdateBeacon(w http.ResponseWriter, req *http.Request, ps map[string]string) {
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		logs.Error("Receive body failed: %v", err.Error())
@@ -203,7 +202,7 @@ func UpdateBeacon(w http.ResponseWriter, req *http.Request, ps httprouter.Params
 		return
 	}
 	// check
-	id := ps.ByName("beaconId")
+	id := ps["beaconId"]
 	if len(id) == 0 {
 		logs.Error("update bean fail, id should be set.")
 		DefaultHandler.ServeHTTP(w, req, errors.New("Beacon id should be set."), http.StatusBadRequest)
@@ -226,8 +225,8 @@ func UpdateBeacon(w http.ResponseWriter, req *http.Request, ps httprouter.Params
 
 }
 
-func ActiveBeancon(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	id := ps.ByName("beaconId")
+func ActiveBeancon(w http.ResponseWriter, req *http.Request, ps map[string]string) {
+	id := ps["beaconId"]
 	if b, _ := bluedb.QueryBeaconById(id); b == nil {
 		strErr := fmt.Sprintf("Active beacon failed: %v not exist.", id)
 		logs.Error(strErr)
@@ -243,8 +242,8 @@ func ActiveBeancon(w http.ResponseWriter, req *http.Request, ps httprouter.Param
 	w.WriteHeader(http.StatusOK)
 }
 
-func DeActiveBeancon(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	id := ps.ByName("beaconId")
+func DeActiveBeancon(w http.ResponseWriter, req *http.Request, ps map[string]string) {
+	id := ps["beaconId"]
 	if b, _ := bluedb.QueryBeaconById(id); b == nil {
 		strErr := fmt.Sprintf("DeActive beacon failed: %v not exist.", id)
 		logs.Error(strErr)

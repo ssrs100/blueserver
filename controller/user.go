@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jack0liu/logs"
-	"github.com/julienschmidt/httprouter"
 	"github.com/ssrs100/blueserver/bluedb"
 	utils "github.com/ssrs100/blueserver/common"
 	"github.com/ssrs100/blueserver/mqttclient"
@@ -44,7 +43,7 @@ func (u *User) dbListObjectTrans(users []bluedb.User) []User {
 	return ret
 }
 
-func GetUsers(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+func GetUsers(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 	req.ParseForm()
 	params := make(map[string]interface{})
 	if limit, err := strconv.Atoi(req.Form.Get("limit")); err == nil {
@@ -81,7 +80,7 @@ type UserLoginResponse struct {
 	Token     string `json:"token"`
 }
 
-func UserLogin(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+func UserLogin(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		logs.Error("Receive body failed: %v", err.Error())
@@ -130,7 +129,7 @@ func UserLogin(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func CreateUser(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+func CreateUser(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		logs.Error("Receive body failed: %v", err.Error())
@@ -209,8 +208,8 @@ func CreateUser(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	json.NewEncoder(w).Encode(CreateUserResponse{ProjectId: id})
 }
 
-func DeleteUser(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	id := ps.ByName("projectId")
+func DeleteUser(w http.ResponseWriter, req *http.Request, ps map[string]string) {
+	id := ps["projectId"]
 	user, _ := bluedb.QueryUserById(id)
 	err := bluedb.DeleteUser(id)
 	if err != nil {
@@ -226,8 +225,8 @@ func DeleteUser(w http.ResponseWriter, req *http.Request, ps httprouter.Params) 
 
 }
 
-func GetUser(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	id := ps.ByName("projectId")
+func GetUser(w http.ResponseWriter, req *http.Request, ps map[string]string) {
+	id := ps["projectId"]
 	user, err := bluedb.QueryUserById(id)
 	if err != nil {
 		logs.Error("Get user fail. err:%s", err.Error())

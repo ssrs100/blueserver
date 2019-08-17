@@ -3,7 +3,6 @@ package controller
 import (
 	"encoding/json"
 	"github.com/jack0liu/logs"
-	"github.com/julienschmidt/httprouter"
 	"github.com/ssrs100/blueserver/bluedb"
 	"io/ioutil"
 	"net/http"
@@ -35,7 +34,7 @@ type HybridResponse struct {
 	Beacons []Hybrid `json:"beacons"`
 }
 
-func GetForObserved(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+func GetForObserved(w http.ResponseWriter, req *http.Request, ps map[string]string) {
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		logs.Error("Receive body failed: %v", err.Error())
