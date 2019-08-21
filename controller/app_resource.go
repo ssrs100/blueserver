@@ -26,7 +26,7 @@ func GetAdPic(w http.ResponseWriter, req *http.Request, ps map[string]string) {
 	}
 	app := AppRes{
 		Id : res.Id,
-		Url: fmt.Sprintf("%s/%s/%s", res.Endpoint, res.Uri, res.ResourceName),
+		Url: fmt.Sprintf("%s%s%s", res.Endpoint, res.Uri, res.ResourceName),
 		Type: res.Type,
 	}
 	w.WriteHeader(http.StatusOK)
