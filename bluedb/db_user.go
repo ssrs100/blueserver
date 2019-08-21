@@ -19,6 +19,11 @@ type User struct {
 	SecretKey string `orm:"size(128);null"`
 }
 
+func init() {
+	orm.RegisterModel(new(User))
+}
+
+
 func CreateUser(user User) string {
 	o := orm.NewOrm()
 	u2, err := uuid.NewV4()

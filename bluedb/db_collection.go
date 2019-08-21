@@ -14,6 +14,11 @@ type Collection struct {
 	CreateAt    time.Time `orm:"auto_now_add;type(datetime)"`
 }
 
+func init() {
+	orm.RegisterModel(new(Collection))
+}
+
+
 func AddBatchCollections(cols []Collection) error {
 	o := orm.NewOrm()
 	// insert

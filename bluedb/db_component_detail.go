@@ -15,6 +15,11 @@ type ComponentDetail struct {
 	UpdateData    string `orm:"type(text);null"`
 }
 
+func init() {
+	orm.RegisterModel(new(ComponentDetail))
+}
+
+
 func CreateComponentDetail(detail ComponentDetail) string {
 	o := orm.NewOrm()
 	u2, err := uuid.NewV4()

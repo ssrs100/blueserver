@@ -19,6 +19,11 @@ type Component struct {
 	CreateAt          time.Time `orm:"auto_now_add;type(datetime)"`
 }
 
+func init() {
+	orm.RegisterModel(new(Component))
+}
+
+
 func CreateComponent(component Component) string {
 	o := orm.NewOrm()
 	u2, err := uuid.NewV4()

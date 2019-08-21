@@ -18,6 +18,11 @@ type Beacon struct {
 	Create_at   time.Time `orm:"auto_now_add;type(datetime)"`
 }
 
+func init() {
+	orm.RegisterModel(new(Beacon))
+}
+
+
 func CreateBeacon(beacon Beacon) string {
 	o := orm.NewOrm()
 	u2, err := uuid.NewV4()
