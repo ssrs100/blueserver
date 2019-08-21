@@ -71,6 +71,7 @@ func QueryResByType(rsType string) *AppResource {
 	err := qs.One(&res)
 	if err != nil {
 		logs.Error("query beacon fail, err:%s", err.Error())
+		return nil
 	}
 	return &res
 }

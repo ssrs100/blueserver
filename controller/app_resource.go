@@ -14,8 +14,8 @@ const (
 
 type AppRes struct {
 	Id   string `json:"id"`
-	Url  string `json:"beacon_id"`
-	Type string `json:"attachment_name"`
+	Url  string `json:"url"`
+	Type string `json:"res_type"`
 }
 
 func GetAdPic(w http.ResponseWriter, req *http.Request, ps map[string]string) {
