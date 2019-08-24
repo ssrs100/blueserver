@@ -82,7 +82,7 @@ func startAwsClient() {
 					logs.Error("%s", err.Error())
 					continue
 				}
-				if rd.Temperature >= tempThresh {
+				if int(rd.Temperature) >= tempThresh {
 					go sendSns(&rd, false)
 				} else {
 					go sendSns(&rd, true)
