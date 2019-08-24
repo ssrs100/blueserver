@@ -12,12 +12,12 @@ import (
 )
 
 type ReportData struct {
-	Device      string `json:"device"`
-	Thing       string `json:"thing"`
-	Timestamp   int64  `json:"timestamp"`
-	Rssi        int    `json:"rssi"`
-	Temperature int    `json:"temperature"`
-	Humidity    int    `json:"humidity"`
+	Device      string  `json:"device"`
+	Thing       string  `json:"thing"`
+	Timestamp   int64   `json:"timestamp"`
+	Rssi        int     `json:"rssi"`
+	Temperature float64 `json:"temperature"`
+	Humidity    float64 `json:"humidity"`
 }
 
 type OutData struct {
