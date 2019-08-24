@@ -87,6 +87,7 @@ func startAwsClient() {
 				} else {
 					go sendSns(&rd, true)
 				}
+				logs.Debug("insert %v", rd)
 				logs.Debug("insert influxdb success")
 			}
 		}
