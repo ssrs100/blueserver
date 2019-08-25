@@ -29,7 +29,9 @@ type OutData struct {
 	Humidity    json.Number `json:"humidity"`
 }
 
-type OutDataList []OutData
+type OutDataList struct {
+	Datas []*OutData `json:"datas"`
+}
 
 type InfluxClient struct {
 	c *client.Client

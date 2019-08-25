@@ -65,8 +65,10 @@ func GetThingData(w http.ResponseWriter, req *http.Request, ps map[string]string
 		_, _ = w.Write([]byte("thing id not found"))
 		return
 	}
-	logs.Debug("%v", datas)
-	body, err := json.Marshal(datas)
+	list := influxdb.OutDataList{
+		Datas: datas,
+	}
+	body, err := json.Marshal(list)
 	if err != nil {
 		logs.Error("Invalid data. err:%s", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
