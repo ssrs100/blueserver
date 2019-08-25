@@ -85,7 +85,7 @@ func (s *Server) RegisterRoutes() *httptreemux.TreeMux {
 
 	router.GET("/aws/v1/:projectId/things", aws.ListThings)
 	router.GET("/aws/v1/:projectId/things/:thingName/latest", aws.GetThingLatestData)
-	router.GET("/aws/v1/:projectId/things/:thingName/range", aws.GetThingData)
+	router.GET("/aws/v1/:projectId/things/:thingName/range-data", aws.GetThingData)
 	// Routes for attachments
 	router.GET("/app/resource", controller.GetAdPic)
 	return router

@@ -46,11 +46,12 @@ func GetThingData(w http.ResponseWriter, req *http.Request, ps map[string]string
 	startAt := req.URL.Query().Get("startAt")
 	endAt := req.URL.Query().Get("endAt")
 	// startAt, endAt like '2019-08-17T06:40:27.995Z'
-	_, err := time.Parse(time.RFC3339, startAt)
+	var tEnd time.Time
+	tStart, err := time.Parse(time.RFC3339, startAt)
 	if err == nil {
-		_, err = time.Parse(time.RFC3339, endAt)
+		tEnd, err = time.Parse(time.RFC3339, endAt)
 	}
-	if err != nil {
+	if err != nil || tEnd.Before(tStart) {
 		strErr := fmt.Sprintf("Invalid time params, startAt:%s, endAt:%s.", startAt, endAt)
 		logs.Error(strErr)
 		w.WriteHeader(http.StatusBadRequest)
@@ -64,6 +65,7 @@ func GetThingData(w http.ResponseWriter, req *http.Request, ps map[string]string
 		_, _ = w.Write([]byte("thing id not found"))
 		return
 	}
+	logs.Debug("%v", datas)
 	body, err := json.Marshal(datas)
 	if err != nil {
 		logs.Error("Invalid data. err:%s", err.Error())
