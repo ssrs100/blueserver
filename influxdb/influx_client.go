@@ -31,6 +31,7 @@ type OutData struct {
 
 type OutDataList struct {
 	Datas []*OutData `json:"datas"`
+	Count int        `json:"count"`
 }
 
 type InfluxClient struct {

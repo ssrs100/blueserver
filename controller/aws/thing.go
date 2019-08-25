@@ -67,6 +67,7 @@ func GetThingData(w http.ResponseWriter, req *http.Request, ps map[string]string
 	}
 	list := influxdb.OutDataList{
 		Datas: datas,
+		Count: len(datas),
 	}
 	body, err := json.Marshal(list)
 	if err != nil {
