@@ -29,6 +29,8 @@ type OutData struct {
 	Humidity    json.Number `json:"humidity"`
 }
 
+type OutDataList []OutData
+
 type InfluxClient struct {
 	c *client.Client
 }
@@ -137,7 +139,7 @@ func GetDataByTime(table string, thing, startAt, endAt string) (datas []*OutData
 	// startAt, endAt like '2019-08-17T06:40:27.995Z'
 	q := client.Query{
 		Command: fmt.Sprintf("select %s from %s where time >= '%s' and time < '%s' thing='%s' "+
-			"order by time desc", columnStr, table, startAt, endAt, thing),
+			"order by time desc limit 1000", columnStr, table, startAt, endAt, thing),
 		Database: dbName,
 	}
 	logs.Debug("%s", q.Command)
