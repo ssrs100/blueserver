@@ -98,8 +98,8 @@ func InitSns() {
 	sess := session.Must(session.NewSession())
 
 	creds := credentials.NewStaticCredentials(
-		"AKIAWBVH7ITHXEYJ47V4",
-		"9VRskVkinzbHzLZLNRCXYr1P0bdmFO8sLw/Y9auF",
+		"**",
+		"***",
 		"",
 	)
 	snsClient = sns.New(sess, &aws.Config{Credentials: creds, Region: aws.String("us-west-2")})
