@@ -96,10 +96,13 @@ func startAwsClient() {
 
 func InitSns() {
 	sess := session.Must(session.NewSession())
-
+	adm := bluedb.QueryUserByName("admin")
+	if adm == nil {
+		panic("get admin fail")
+	}
 	creds := credentials.NewStaticCredentials(
-		"**",
-		"***",
+		adm.AccessKey,
+		adm.SecretKey,
 		"",
 	)
 	snsClient = sns.New(sess, &aws.Config{Credentials: creds, Region: aws.String("us-west-2")})
