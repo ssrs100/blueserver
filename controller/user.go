@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/fernet/fernet-go"
 	"github.com/jack0liu/logs"
+	"github.com/sesscache"
 	"github.com/ssrs100/blueserver/bluedb"
 	utils "github.com/ssrs100/blueserver/common"
 	"github.com/ssrs100/blueserver/controller/aws"
@@ -13,6 +15,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type User struct {
@@ -28,6 +31,13 @@ type BindAwsUserReq struct {
 	Name      string `json:"aws_username"`
 	AccessKey string `json:"aws_access_key"`
 	SecretKey string `json:"aws_secret_key"`
+}
+
+type UserSession struct {
+	UserId    string   `json:"user_id"`
+	Roles     []string `json:"roles"`
+	ExpiredAt string   `json:"expired_at"`
+	CreatedAt string   `json:"created_at"`
 }
 
 func (u *User) dbObjectTrans(beacon bluedb.User) User {
@@ -129,10 +139,47 @@ func UserLogin(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 		return
 	}
 
+	// gen token
+	now := time.Now().UTC()
+	us := UserSession{
+		UserId:    user.Id,
+		Roles:     []string{"te_admin"},
+		CreatedAt: now.Format(time.RFC3339),
+		ExpiredAt: now.Add(time.Hour * 24).Format(time.RFC3339),
+	}
+	key := fernet.Key{}
+	err = key.Generate()
+	if err != nil {
+		logs.Error("Invalid key. err:%s", err.Error())
+		DefaultHandler.ServeHTTP(w, req, err, http.StatusInternalServerError)
+		return
+	}
+	sId := key.Encode()
+	sess, err := json.Marshal(&us)
+	if err != nil {
+		logs.Error("Invalid sess. err:%s", err.Error())
+		DefaultHandler.ServeHTTP(w, req, err, http.StatusInternalServerError)
+		return
+	}
+	k := fernet.MustDecodeKeys(sId)
+	tok, err := fernet.EncryptAndSign(sess, k[0])
+	if err != nil {
+		logs.Error("encrypt sess. err:%s", err.Error())
+		DefaultHandler.ServeHTTP(w, req, err, http.StatusInternalServerError)
+		return
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:  utils.CookieSessionId,
+		Value: string(tok),
+	})
+	sesscache.Set(string(tok), sId)
+	logs.Info("key:%s", sId)
+	logs.Info("session:%s", string(tok))
+	// return
 	w.Header().Add("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(UserLoginResponse{
 		ProjectId: user.Id,
-		Token:     utils.GenToken(user.Id, userReq.Passwd),
+		Token:     string(tok),
 	})
 	w.WriteHeader(http.StatusOK)
 }

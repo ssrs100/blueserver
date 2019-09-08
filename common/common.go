@@ -7,9 +7,11 @@ import (
 const (
 	ComponentBeaconType  = "BEACON"
 	ComponentGatewayType = "GATEWAY"
+
+	CookieSessionId = "X-SessionID-B"
 )
 
 func GenToken(id, passwd string) string {
 	hash := sha512.New()
-	return string(hash.Sum([]byte(id+passwd)))
+	return string(hash.Sum([]byte(id + passwd)))
 }

@@ -21,7 +21,7 @@ func LoadApi() *httptreemux.TreeMux {
 
 	// Set the routes for the application.
 	s := middleware.NewStack()
-	s.Use(middleware.PassThrough)
+	s.Use(middleware.Auth)
 	// Route for health check
 	router.GET("/v1/heart", s.Wrap(Health))
 
