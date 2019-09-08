@@ -52,6 +52,7 @@ func (s *Server) RegisterRoutes() *httptreemux.TreeMux {
 	router.POST("/v1/users", controller.CreateUser)
 	router.POST("/v1/users/login", controller.UserLogin)
 	router.DELETE("/v1/users/:projectId", controller.DeleteUser)
+	router.POST("/v1/users/:projectId", controller.BindAwsUser)
 
 	// Routes for beacons
 	router.POST("/proximity/v1/:projectId/beacons", controller.RegisterBeacon)

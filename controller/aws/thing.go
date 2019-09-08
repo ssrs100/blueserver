@@ -157,3 +157,26 @@ func listThings(svc *iot.IoT, input *iot.ListThingsInput) (*iot.ListThingsOutput
 	req.HTTPRequest.Header.Add("Accept", "application/json")
 	return out, req.Send()
 }
+
+func CheckAkSk(ak, sk string) error {
+	sess := session.Must(session.NewSession())
+	creds := credentials.NewStaticCredentials(
+		ak,
+		sk,
+		"",
+	)
+	svc := iot.New(sess, &aws.Config{Credentials: creds, Region: aws.String(region)})
+	limit64 := int64(1)
+	awsReq := iot.ListThingsInput{
+		NextToken: nil,
+		MaxResults: &limit64,
+	}
+
+	_, err := listThings(svc, &awsReq)
+	if err != nil {
+		errStr := fmt.Sprintf("aws return err:%s", err.Error())
+		logs.Error(errStr)
+		return err
+	}
+	return nil
+}

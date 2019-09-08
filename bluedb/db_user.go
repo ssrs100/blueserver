@@ -7,22 +7,21 @@ import (
 	"github.com/satori/go.uuid"
 )
 
-
 type User struct {
-	Id        string `orm:"size(64);pk"`
-	Name      string `orm:"size(128)"`
-	Passwd    string `orm:"size(128)"`
-	Email     string `orm:"size(128);null"`
-	Mobile    string `orm:"size(128);null"`
-	Address   string `orm:"size(512);null"`
-	AccessKey string `orm:"size(128);null"`
-	SecretKey string `orm:"size(128);null"`
+	Id          string `orm:"size(64);pk"`
+	Name        string `orm:"size(128)"`
+	Passwd      string `orm:"size(128)"`
+	Email       string `orm:"size(128);null"`
+	Mobile      string `orm:"size(128);null"`
+	Address     string `orm:"size(512);null"`
+	AwsUsername string `orm:"size(128);null"`
+	AccessKey   string `orm:"size(128);null"`
+	SecretKey   string `orm:"size(128);null"`
 }
 
 func init() {
 	orm.RegisterModel(new(User))
 }
-
 
 func CreateUser(user User) string {
 	o := orm.NewOrm()
@@ -37,6 +36,12 @@ func CreateUser(user User) string {
 	logs.Info("create user id: %v", id)
 	logs.Info("create user: %v", user)
 	return user.Id
+}
+
+func UpdateUser(user User) error {
+	o := orm.NewOrm()
+	_, err := o.Update(&user)
+	return err
 }
 
 func DeleteUser(id string) error {

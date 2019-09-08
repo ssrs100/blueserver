@@ -7,6 +7,7 @@ import (
 	"github.com/jack0liu/logs"
 	"github.com/ssrs100/blueserver/bluedb"
 	utils "github.com/ssrs100/blueserver/common"
+	"github.com/ssrs100/blueserver/controller/aws"
 	"github.com/ssrs100/blueserver/mqttclient"
 	"io/ioutil"
 	"net/http"
@@ -21,6 +22,12 @@ type User struct {
 	Email   string `json:"email"`
 	Mobile  string `json:"mobile"`
 	Address string `json:"address"`
+}
+
+type BindAwsUserReq struct {
+	Name      string `json:"aws_username"`
+	AccessKey string `json:"aws_access_key"`
+	SecretKey string `json:"aws_secret_key"`
 }
 
 func (u *User) dbObjectTrans(beacon bluedb.User) User {
@@ -206,6 +213,59 @@ func CreateUser(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 	w.WriteHeader(http.StatusOK)
 	w.Header().Add("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(CreateUserResponse{ProjectId: id})
+}
+
+func BindAwsUser(w http.ResponseWriter, req *http.Request, ps map[string]string) {
+	projectId := ps["projectId"]
+	user, err := bluedb.QueryUserById(projectId)
+	if err != nil {
+		logs.Debug("get user err:%s", err.Error())
+		DefaultHandler.ServeHTTP(w, req, err, http.StatusBadRequest)
+		return
+	}
+	if len(user.AwsUsername) > 0 {
+		errStr := fmt.Sprintf("user(%s) has binded aws-user(%s)", user.Name, user.AwsUsername)
+		logs.Error(errStr)
+		DefaultHandler.ServeHTTP(w, req, errors.New(errStr), http.StatusBadRequest)
+		return
+	}
+	body, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		logs.Error("Receive body failed: %v", err.Error())
+		DefaultHandler.ServeHTTP(w, req, err, http.StatusBadRequest)
+		return
+	}
+	defer req.Body.Close()
+
+	var bindReq = &BindAwsUserReq{}
+	err = json.Unmarshal(body, bindReq)
+	if err != nil {
+		logs.Error("Invalid body. err:%s", err.Error())
+		DefaultHandler.ServeHTTP(w, req, err, http.StatusBadRequest)
+		return
+	}
+	name := strings.TrimSpace(bindReq.Name)
+	if len(name) <= 0 {
+		strErr := fmt.Sprintf("name is empty.")
+		logs.Error(strErr)
+		DefaultHandler.ServeHTTP(w, req, errors.New(strErr), http.StatusBadRequest)
+		return
+	}
+	if err := aws.CheckAkSk(bindReq.AccessKey, bindReq.SecretKey); err != nil {
+		DefaultHandler.ServeHTTP(w, req, err, http.StatusBadRequest)
+		return
+	}
+	user.AwsUsername = bindReq.Name
+	user.AccessKey = bindReq.AccessKey
+	user.SecretKey = bindReq.SecretKey
+	err = bluedb.UpdateUser(user)
+	if err != nil {
+		logs.Error("update user fail. err:%s", err.Error())
+		DefaultHandler.ServeHTTP(w, req, err, http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func DeleteUser(w http.ResponseWriter, req *http.Request, ps map[string]string) {
