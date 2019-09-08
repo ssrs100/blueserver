@@ -2,13 +2,21 @@ package controller
 
 import (
 	"github.com/dimfeld/httptreemux"
+	"github.com/jack0liu/logs"
 	"github.com/ssrs100/blueserver/controller/aws"
 	"github.com/ssrs100/blueserver/controller/middleware"
 	"net/http"
+	"runtime"
 )
 
 func Health(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 	w.WriteHeader(http.StatusOK)
+}
+
+func panicHandler(w http.ResponseWriter, r *http.Request, err interface{}) {
+	var buf [4096]byte
+	n := runtime.Stack(buf[:], false)
+	logs.Debug("==> %s\n", string(buf[:n]))
 }
 
 func LoadApi() *httptreemux.TreeMux {
@@ -16,7 +24,7 @@ func LoadApi() *httptreemux.TreeMux {
 	router := httptreemux.New()
 
 	// Set router options.
-	router.PanicHandler = httptreemux.SimplePanicHandler
+	router.PanicHandler = panicHandler
 	router.RedirectTrailingSlash = true
 
 	// Set the routes for the application.
