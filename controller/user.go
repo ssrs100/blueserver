@@ -171,6 +171,7 @@ func UserLogin(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:  utils.CookieSessionId,
 		Value: string(tok),
+		Path:  "/",
 	})
 	sesscache.Set(string(tok), sId)
 	logs.Info("key:%s", sId)

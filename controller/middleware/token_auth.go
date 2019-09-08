@@ -3,6 +3,7 @@ package middleware
 import (
 	"github.com/dimfeld/httptreemux"
 	"github.com/fernet/fernet-go"
+	"github.com/jack0liu/conf"
 	"github.com/jack0liu/logs"
 	"github.com/ssrs100/blueserver/common"
 	"github.com/ssrs100/blueserver/sesscache"
@@ -20,7 +21,8 @@ func Auth(fn httptreemux.HandlerFunc) httptreemux.HandlerFunc {
 		logs.Info("session:%s", c.Value)
 		k := sesscache.Get(c.Value)
 		if len(k) == 0 {
-			http.Error(w, http.StatusText(400), http.StatusUnauthorized)
+			redirectAddr := conf.GetString("redirect_addr")
+			http.Redirect(w, r, redirectAddr, http.StatusFound)
 			return
 		}
 		logs.Info("key:%s", k)
@@ -28,9 +30,10 @@ func Auth(fn httptreemux.HandlerFunc) httptreemux.HandlerFunc {
 		tokenStr := fernet.VerifyAndDecrypt([]byte(c.Value), 0, keys)
 		if len(tokenStr) == 0 {
 			sesscache.Del(c.Value)
-			http.Error(w, http.StatusText(400), http.StatusUnauthorized)
+			http.Error(w, http.StatusText(401), http.StatusUnauthorized)
 			return
 		}
+		sesscache.Touch(c.Value)
 		logs.Info("tokenStr:%s", tokenStr)
 		fn(w, r, ps)
 	}
