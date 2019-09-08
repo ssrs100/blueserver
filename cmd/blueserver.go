@@ -10,6 +10,7 @@ import (
 	"github.com/ssrs100/blueserver/controller"
 	"github.com/ssrs100/blueserver/influxdb"
 	"github.com/ssrs100/blueserver/mqttclient"
+	"github.com/ssrs100/blueserver/sesscache"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -56,7 +57,7 @@ func Start() error {
 		logs.Error(errStr)
 		os.Exit(1)
 	}
-
+	sesscache.InitRedis()
 	mc := mqttclient.InitClient()
 	mc.Start()
 
