@@ -88,6 +88,7 @@ type UserLoginResponse struct {
 }
 
 func UserLogin(w http.ResponseWriter, req *http.Request, _ map[string]string) {
+	logs.Info("login user start...")
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		logs.Error("Receive body failed: %v", err.Error())
@@ -216,6 +217,7 @@ func CreateUser(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 }
 
 func BindAwsUser(w http.ResponseWriter, req *http.Request, ps map[string]string) {
+	logs.Info("bind user start...")
 	projectId := ps["projectId"]
 	user, err := bluedb.QueryUserById(projectId)
 	if err != nil {
