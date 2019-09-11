@@ -45,6 +45,7 @@ func GetThingData(w http.ResponseWriter, req *http.Request, ps map[string]string
 	thing := ps["thingName"]
 	startAt := req.URL.Query().Get("startAt")
 	endAt := req.URL.Query().Get("endAt")
+	device := req.URL.Query().Get("device")
 	// startAt, endAt like '2019-08-17T06:40:27.995Z'
 	var tEnd time.Time
 	tStart, err := time.Parse(time.RFC3339, startAt)
@@ -58,7 +59,7 @@ func GetThingData(w http.ResponseWriter, req *http.Request, ps map[string]string
 		_, _ = w.Write([]byte(strErr))
 		return
 	}
-	datas, err := influxdb.GetDataByTime("temperature", thing, startAt, endAt)
+	datas, err := influxdb.GetDataByTime("temperature", thing, startAt, endAt, device)
 	if err != nil {
 		logs.Error("Invalid data. err:%s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -168,7 +169,7 @@ func CheckAkSk(ak, sk string) error {
 	svc := iot.New(sess, &aws.Config{Credentials: creds, Region: aws.String(region)})
 	limit64 := int64(1)
 	awsReq := iot.ListThingsInput{
-		NextToken: nil,
+		NextToken:  nil,
 		MaxResults: &limit64,
 	}
 

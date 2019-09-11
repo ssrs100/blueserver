@@ -138,12 +138,21 @@ func getOneData(data []interface{}) *OutData {
 	return &ret
 }
 
-func GetDataByTime(table string, thing, startAt, endAt string) (datas []*OutData, err error) {
+func GetDataByTime(table string, thing, startAt, endAt, device string) (datas []*OutData, err error) {
 	// startAt, endAt like '2019-08-17T06:40:27.995Z'
-	q := client.Query{
-		Command: fmt.Sprintf("select %s from %s where time >= '%s' and time < '%s' and thing='%s' "+
-			"order by time desc limit 1000", columnStr, table, startAt, endAt, thing),
-		Database: dbName,
+	var q client.Query
+	if len(device) > 0 {
+		q = client.Query{
+			Command: fmt.Sprintf("select %s from %s where time >= '%s' and time < '%s' and thing='%s' and device='%s' "+
+				"order by time desc limit 1000", columnStr, table, startAt, endAt, thing, device),
+			Database: dbName,
+		}
+	} else {
+		q = client.Query{
+			Command: fmt.Sprintf("select %s from %s where time >= '%s' and time < '%s' and thing='%s' "+
+				"order by time desc limit 1000", columnStr, table, startAt, endAt, thing),
+			Database: dbName,
+		}
 	}
 	logs.Debug("%s", q.Command)
 	response, err := influx.c.Query(q)
