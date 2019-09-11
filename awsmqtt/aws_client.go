@@ -83,9 +83,15 @@ func startAwsClient() {
 					logs.Error("%s", err.Error())
 					continue
 				}
-				tmp, err := strconv.Atoi(string(rd.Temperature))
+				var tmp int
+				tmpFloat, err := strconv.ParseFloat(string(rd.Temperature), 64)
 				if err != nil {
-					logs.Error("temper err:%v", rd.Temperature)
+					tmp, err = strconv.Atoi(string(rd.Temperature))
+					if err != nil {
+						logs.Error("temper err:%v", rd.Temperature)
+					}
+				} else {
+					tmp = int(tmpFloat)
 				}
 				if tmp >= tempThresh {
 					go sendSns(&rd, false)
