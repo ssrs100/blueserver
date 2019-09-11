@@ -103,7 +103,7 @@ func InitSns() {
 	creds := credentials.NewStaticCredentials(
 		adm.AccessKey,
 		adm.SecretKey,
-		"blueSns",
+		"",
 	)
 	snsClient = sns.New(sess, &aws.Config{Credentials: creds, Region: aws.String("us-west-2")})
 }
