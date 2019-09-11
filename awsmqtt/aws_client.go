@@ -17,6 +17,7 @@ import (
 	"github.com/ssrs100/blueserver/bluedb"
 	"github.com/ssrs100/blueserver/influxdb"
 	"path/filepath"
+	"strconv"
 	"time"
 )
 
@@ -30,9 +31,9 @@ var (
 	snsClient  *sns.SNS
 )
 
-var msgTemplate = "[notice]device(%s) thing(%s) temperature is %d, it has exceeded threshold, please pay attention to it."
+var msgTemplate = "[notice]device(%s) thing(%s) temperature is %v, it has exceeded threshold, please pay attention to it."
 
-var cleanTemplate = "[clean]device(%s) thing(%s) temperature is %d, it drops below threshold."
+var cleanTemplate = "[clean]device(%s) thing(%s) temperature is %v, it drops below threshold."
 
 var deviceSnsCache *cache.Cache
 
@@ -82,7 +83,11 @@ func startAwsClient() {
 					logs.Error("%s", err.Error())
 					continue
 				}
-				if int(rd.Temperature) >= tempThresh {
+				tmp, err := strconv.Atoi(string(rd.Temperature))
+				if err != nil {
+					logs.Error("temper err:%v", rd.Temperature)
+				}
+				if tmp >= tempThresh {
 					go sendSns(&rd, false)
 				} else {
 					go sendSns(&rd, true)
