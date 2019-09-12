@@ -7,6 +7,7 @@ import (
 	"github.com/jack0liu/conf"
 	"github.com/jack0liu/logs"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -131,9 +132,60 @@ func getOneData(data []interface{}) *OutData {
 	ret := OutData{}
 	ret.Timestamp, _ = data[0].(string)
 	ret.Device, _ = data[1].(string)
-	ret.Humidity, _ = data[2].(json.Number)
-	ret.Rssi, _ = data[3].(json.Number)
-	ret.Temperature, _ = data[4].(json.Number)
+	//ret.Humidity, _ = data[2].(json.Number)
+	//ret.Rssi, _ = data[3].(json.Number)
+	//ret.Temperature, _ = data[4].(json.Number)
+
+	humi,  ok := data[2].(string)
+        if ok {
+           ret.Humidity = json.Number(humi)
+        } else {
+	  humidityFloat, ok := data[2].(float64)
+	  if ok {
+		ret.Humidity = json.Number(strconv.FormatFloat(humidityFloat, 'G', 5, 64))
+	  } else {
+		humidityInt, ok := data[2].(int)
+		if ok {
+			ret.Humidity = json.Number(strconv.Itoa(humidityInt))
+		} else {
+			logs.Error("invalid humidity:%v", data[2])
+		}
+	  }
+        }
+
+	rssi,  ok := data[3].(string)
+        if ok {
+           ret.Rssi = json.Number(rssi)
+        } else {
+	  rssiInt, ok := data[3].(int)
+	  if ok {
+		ret.Rssi = json.Number(strconv.Itoa(rssiInt))
+	  } else {
+		rssiFloat, ok := data[3].(float64)
+		if ok {
+			ret.Rssi = json.Number(strconv.FormatFloat(rssiFloat, 'G', 5, 64))
+		} else {
+			logs.Error("invalid rssi:%v", data[2])
+		}
+	  }
+        }
+
+	temp,  ok := data[3].(string)
+        if ok {
+           ret.Temperature = json.Number(temp)
+        } else { 
+	  tempFloat, ok := data[4].(float64)
+  	  if ok {
+		ret.Temperature = json.Number(strconv.FormatFloat(tempFloat, 'G', 5, 64))
+	  } else {
+		tempInt, ok := data[4].(int)
+		if ok {
+			ret.Temperature = json.Number(strconv.Itoa(tempInt))
+		} else {
+			logs.Error("invalid temper:%v", data[4])
+		}
+	  }
+        }
 	ret.Thing, _ = data[5].(string)
 	return &ret
 }
