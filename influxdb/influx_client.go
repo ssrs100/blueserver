@@ -116,8 +116,8 @@ func GetLatest(table string, thing, device, projectId string) (data *OutData, er
 		}
 	} else {
 		q = client.Query{
-			Command: fmt.Sprintf("select %s from %s where thing='%s' "+
-				"order by time desc limit 1", columnStr, table, thing),
+			Command: fmt.Sprintf("select %s from %s where project_id='%s' and thing='%s' "+
+				"order by time desc limit 1", columnStr, table, projectId, thing),
 			Database: dbName,
 		}
 	}
