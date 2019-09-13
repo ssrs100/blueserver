@@ -170,7 +170,7 @@ func getOneData(data []interface{}) *OutData {
 		}
 	}
 
-	temp, ok := data[3].(string)
+	temp, ok := data[4].(string)
 	if ok {
 		ret.Temperature = json.Number(temp)
 	} else {
