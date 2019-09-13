@@ -35,6 +35,10 @@ type OutDataList struct {
 	Count int        `json:"count"`
 }
 
+type DeviceList struct {
+	Devices []string `json:"devices"`
+}
+
 type InfluxClient struct {
 	c *client.Client
 }
@@ -99,11 +103,20 @@ func Insert(table string, data *ReportData) error {
 	return nil
 }
 
-func GetLatest(table string, thing string) (data *OutData, err error) {
-	q := client.Query{
-		Command: fmt.Sprintf("select %s from %s where thing='%s' "+
-			"order by time desc limit 1", columnStr, table, thing),
-		Database: dbName,
+func GetLatest(table string, thing, device string) (data *OutData, err error) {
+	var q client.Query
+	if len(device) > 0 {
+		q = client.Query{
+			Command: fmt.Sprintf("select %s from %s where thing='%s' and device='%s' "+
+				"order by time desc limit 1", columnStr, table, thing, device),
+			Database: dbName,
+		}
+	} else {
+		q = client.Query{
+			Command: fmt.Sprintf("select %s from %s where thing='%s' "+
+				"order by time desc limit 1", columnStr, table, thing),
+			Database: dbName,
+		}
 	}
 	logs.Debug("%s", q.Command)
 	response, err := influx.c.Query(q)
@@ -128,7 +141,6 @@ func getOneData(data []interface{}) *OutData {
 		logs.Warn("columns less %d", len(columns))
 		return nil
 	}
-	logs.Debug("%v", data)
 	ret := OutData{}
 	ret.Timestamp, _ = data[0].(string)
 	ret.Device, _ = data[1].(string)
@@ -187,8 +199,16 @@ func getOneData(data []interface{}) *OutData {
 		}
 	}
 	ret.Thing, _ = data[5].(string)
-	logs.Debug("%v", ret)
 	return &ret
+}
+
+func getOneDevice(data []interface{}) string {
+	if len(data) < 2 {
+		logs.Warn("columns less 2")
+		return ""
+	}
+	device, _ := data[1].(string)
+	return device
 }
 
 func GetDataByTime(table string, thing, startAt, endAt, device string) (datas []*OutData, err error) {
@@ -220,6 +240,32 @@ func GetDataByTime(table string, thing, startAt, endAt, device string) (datas []
 		}
 		for _, data := range v.Series[0].Values {
 			d := getOneData(data)
+			retList = append(retList, d)
+		}
+	}
+
+	return retList, nil
+}
+
+func GetDevicesByThing(table string, thing string) (devices []string, err error) {
+	var q client.Query
+	q = client.Query{
+		Command:  fmt.Sprintf("select distinct(device) from '%s' where thing='%s'", table, thing),
+		Database: dbName,
+	}
+	logs.Debug("%s", q.Command)
+	response, err := influx.c.Query(q)
+	if err != nil {
+		return nil, err
+	}
+	retList := make([]string, 0)
+	for _, v := range response.Results {
+		if len(v.Series) == 0 {
+			logs.Warn("series is 0")
+			continue
+		}
+		for _, data := range v.Series[0].Values {
+			d := getOneDevice(data)
 			retList = append(retList, d)
 		}
 	}
