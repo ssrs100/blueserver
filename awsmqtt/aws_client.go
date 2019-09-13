@@ -16,6 +16,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/ssrs100/blueserver/bluedb"
 	"github.com/ssrs100/blueserver/influxdb"
+	"io/ioutil"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -25,11 +26,12 @@ var _ aws.Config
 var _ awserr.Error
 var _ request.Request
 
-var (
+type AwsIotClient struct {
 	reportChan chan *Shadow
 	awsClient  *Client
 	snsClient  *sns.SNS
-)
+	user       *bluedb.User
+}
 
 var msgTemplate = "[notice]device(%s) thing(%s) temperature is %v, it has exceeded threshold, please pay attention to it."
 
@@ -37,39 +39,77 @@ var cleanTemplate = "[clean]device(%s) thing(%s) temperature is %v, it drops bel
 
 var deviceSnsCache *cache.Cache
 
+var useClientCache map[string]*AwsIotClient
+
+var stopChan chan interface{}
+
 func init() {
 	deviceSnsCache = cache.New(24*time.Hour, 30*time.Minute)
+	useClientCache = make(map[string]*AwsIotClient)
+}
+
+func listAllDir(path string) []string {
+	readerInfos, err := ioutil.ReadDir(path)
+	if err != nil {
+		panic(err.Error())
+	}
+	dirs := make([]string, 0)
+	for _, info := range readerInfos {
+		if info.IsDir() {
+			dirs = append(dirs, info.Name())
+		}
+	}
+	return dirs
 }
 
 func InitAwsClient() {
 	baseDir := utils.GetBasePath()
-	client, err := NewClient(
-		KeyPair{
-			PrivateKeyPath:    filepath.Join(baseDir, "conf", "private.pem.key"),
-			CertificatePath:   filepath.Join(baseDir, "conf", "certificate.pem.crt"),
-			CACertificatePath: filepath.Join(baseDir, "conf", "AmazonRootCA1.pem"),
-		},
-		conf.GetStringWithDefault("iot_endpoint", "a359ikotxsoxw8-ats.iot.us-west-2.amazonaws.com"), // AWS IoT endpoint
-		"blueserverclient",
-	)
-	if err != nil {
-		panic(err)
-	}
-	awsClient = client
+	certDir := filepath.Join(baseDir, "conf", "cert")
+	users := listAllDir(certDir)
+	for _, u := range users {
+		user := bluedb.QueryUserByName(u)
+		if user == nil || len(user.AccessKey) == 0 || len(user.SecretKey) == 0 {
+			logs.Error("get user(%s) fail, or no ak sk set", u)
+			continue
+		}
+		c := conf.LoadFile(filepath.Join(certDir, u, "conf.json"))
+		if c == nil {
+			logs.Error("load user(%s) conf.json fail", u)
+			continue
+		}
+		iotEndpoint := conf.GetString("iot_endpoint")
+		client, err := NewClient(
+			KeyPair{
+				PrivateKeyPath:    filepath.Join(certDir, u, "private.pem.key"),
+				CertificatePath:   filepath.Join(certDir, u, "certificate.pem.crt"),
+				CACertificatePath: filepath.Join(certDir, "AmazonRootCA1.pem"),
+			},
+			iotEndpoint, // AWS IoT endpoint
+			u,
+		)
+		if err != nil {
+			panic(err)
+		}
 
-	reportChan, err = awsClient.SubscribeForThingReport()
-	if err != nil {
-		panic(err)
+		awsIC := AwsIotClient{}
+		awsIC.awsClient = client
+		awsIC.reportChan, err = awsIC.awsClient.SubscribeForThingReport()
+		if err != nil {
+			logs.Error("subscribe user(%s) thing report fail", u)
+			continue
+		}
+		go awsIC.startAwsClient(user.Id, stopChan)
+		useClientCache[u] = &awsIC
 	}
-
-	startAwsClient()
+	logs.Info("start aws client success")
+	<-stopChan
 }
 
-func startAwsClient() {
+func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) {
 	tempThresh := conf.GetIntWithDefault("temperature_thresh", 30)
 	for {
 		select {
-		case s, ok := <-reportChan:
+		case s, ok := <-ac.reportChan:
 			if !ok {
 				logs.Debug("failed to read from shadow channel")
 			} else {
@@ -94,40 +134,38 @@ func startAwsClient() {
 					tmp = int(tmpFloat)
 				}
 				if tmp >= tempThresh {
-					go sendSns(&rd, false)
+					go ac.sendSns(&rd, false)
 				} else {
-					go sendSns(&rd, true)
+					go ac.sendSns(&rd, true)
 				}
 				logs.Debug("insert %v", rd)
 				logs.Debug("insert influxdb success")
 			}
+		case <-stop:
+			logs.Info("stopped")
 		}
 	}
 }
 
-func InitSns() {
+func (ac *AwsIotClient) initSns() {
 	sess := session.Must(session.NewSession())
-	adm := bluedb.QueryUserByName("admin")
-	if adm == nil {
-		panic("get admin fail")
-	}
 	creds := credentials.NewStaticCredentials(
-		adm.AccessKey,
-		adm.SecretKey,
+		ac.user.AccessKey,
+		ac.user.SecretKey,
 		"",
 	)
-	snsClient = sns.New(sess, &aws.Config{Credentials: creds, Region: aws.String("us-west-2")})
+	ac.snsClient = sns.New(sess, &aws.Config{Credentials: creds, Region: aws.String("us-west-2")})
 }
 
-func sendSns(data *influxdb.ReportData, isClean bool) {
+func (ac *AwsIotClient) sendSns(data *influxdb.ReportData, isClean bool) {
 	if isClean {
-		sendCleanMsg(data)
+		ac.sendCleanMsg(data)
 	} else {
-		sendNotifyMsg(data)
+		ac.sendNotifyMsg(data)
 	}
 }
 
-func sendNotifyMsg(data *influxdb.ReportData) {
+func (ac *AwsIotClient) sendNotifyMsg(data *influxdb.ReportData) {
 	_, ok := deviceSnsCache.Get(data.Device)
 	if ok {
 		return
@@ -144,7 +182,7 @@ func sendNotifyMsg(data *influxdb.ReportData) {
 		Message:  aws.String(msg),
 		TopicArn: aws.String("arn:aws:sns:us-west-2:415890359503:email"),
 	}
-	_, err := snsClient.PublishWithContext(ctx, params)
+	_, err := ac.snsClient.PublishWithContext(ctx, params)
 	if err != nil {
 		logs.Error("publish err:%s", err.Error())
 		aerr, ok := err.(awserr.RequestFailure)
@@ -164,7 +202,7 @@ func sendNotifyMsg(data *influxdb.ReportData) {
 	bluedb.SaveNotice(n)
 }
 
-func sendCleanMsg(data *influxdb.ReportData) {
+func (ac *AwsIotClient) sendCleanMsg(data *influxdb.ReportData) {
 	_, ok := deviceSnsCache.Get(data.Device)
 	if !ok {
 		d, _ := bluedb.QueryNoticeByDevice(data.Device)
@@ -180,7 +218,7 @@ func sendCleanMsg(data *influxdb.ReportData) {
 		Message:  aws.String(msg),
 		TopicArn: aws.String("arn:aws:sns:us-west-2:415890359503:email"),
 	}
-	_, err := snsClient.PublishWithContext(ctx, params)
+	_, err := ac.snsClient.PublishWithContext(ctx, params)
 	if err != nil {
 		logs.Error("publish err:%s", err.Error())
 		aerr, ok := err.(awserr.RequestFailure)

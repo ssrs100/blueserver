@@ -31,6 +31,5 @@ func main() {
 		logs.Error(errStr)
 		os.Exit(1)
 	}
-	awsmqtt.InitSns()
 	awsmqtt.InitAwsClient()
 }

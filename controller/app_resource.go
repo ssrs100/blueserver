@@ -24,7 +24,7 @@ func GetAdPic(w http.ResponseWriter, req *http.Request, ps map[string]string) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	app := AppRes{
+	app := AppRes {
 		Id : res.Id,
 		Url: fmt.Sprintf("%s%s%s", res.Endpoint, res.Uri, res.ResourceName),
 		Type: res.Type,

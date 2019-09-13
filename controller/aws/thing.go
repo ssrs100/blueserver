@@ -22,8 +22,9 @@ var (
 
 func GetThingLatestData(w http.ResponseWriter, req *http.Request, ps map[string]string) {
 	thing := ps["thingName"]
+	projectId := ps["projectId"]
 	device := req.URL.Query().Get("device")
-	data, err := influxdb.GetLatest("temperature", thing, device)
+	data, err := influxdb.GetLatest("temperature", thing, device, projectId)
 	if err != nil {
 		logs.Error("Invalid data. err:%s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -44,6 +45,7 @@ func GetThingLatestData(w http.ResponseWriter, req *http.Request, ps map[string]
 
 func GetThingData(w http.ResponseWriter, req *http.Request, ps map[string]string) {
 	thing := ps["thingName"]
+	projectId := ps["projectId"]
 	startAt := req.URL.Query().Get("startAt")
 	endAt := req.URL.Query().Get("endAt")
 	device := req.URL.Query().Get("device")
@@ -60,7 +62,7 @@ func GetThingData(w http.ResponseWriter, req *http.Request, ps map[string]string
 		_, _ = w.Write([]byte(strErr))
 		return
 	}
-	datas, err := influxdb.GetDataByTime("temperature", thing, startAt, endAt, device)
+	datas, err := influxdb.GetDataByTime("temperature", thing, startAt, endAt, device, projectId)
 	if err != nil {
 		logs.Error("Invalid data. err:%s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -85,7 +87,8 @@ func GetThingData(w http.ResponseWriter, req *http.Request, ps map[string]string
 
 func GetThingDevice(w http.ResponseWriter, req *http.Request, ps map[string]string) {
 	thing := ps["thingName"]
-	devices, err := influxdb.GetDevicesByThing("temperature", thing)
+	projectId := ps["projectId"]
+	devices, err := influxdb.GetDevicesByThing("temperature", thing, projectId)
 	if err != nil {
 		logs.Error("Invalid data. err:%s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)

@@ -13,6 +13,7 @@ import (
 )
 
 type ReportData struct {
+	ProjectId   string      `json:"project_id"`
 	Device      string      `json:"device"`
 	Thing       string      `json:"thing"`
 	Timestamp   int64       `json:"timestamp"`
@@ -22,6 +23,7 @@ type ReportData struct {
 }
 
 type OutData struct {
+	ProjectId   string      `json:"project_id"`
 	Thing       string      `json:"thing"`
 	Device      string      `json:"device"`
 	Timestamp   string      `json:"timestamp"`
@@ -50,7 +52,7 @@ const (
 	retention = "default"
 )
 
-var columns = []string{"time", "device", "humidity", "rssi", "temperature", "thing"}
+var columns = []string{"time", "device", "humidity", "rssi", "temperature", "thing", "project_id"}
 var columnStr string
 
 func init() {
@@ -80,6 +82,7 @@ func Insert(table string, data *ReportData) error {
 	fields["humidity"] = data.Humidity
 	fields["rssi"] = data.Rssi
 	fields["thing"] = data.Thing
+	fields["project_id"] = data.ProjectId
 	rdTime := time.Unix(0, data.Timestamp*1000000)
 
 	pts := make([]client.Point, 0)
@@ -103,12 +106,12 @@ func Insert(table string, data *ReportData) error {
 	return nil
 }
 
-func GetLatest(table string, thing, device string) (data *OutData, err error) {
+func GetLatest(table string, thing, device, projectId string) (data *OutData, err error) {
 	var q client.Query
 	if len(device) > 0 {
 		q = client.Query{
-			Command: fmt.Sprintf("select %s from %s where thing='%s' and device='%s' "+
-				"order by time desc limit 1", columnStr, table, thing, device),
+			Command: fmt.Sprintf("select %s from %s where project_id='%s' and thing='%s' and device='%s' "+
+				"order by time desc limit 1", columnStr, table, projectId, thing, device),
 			Database: dbName,
 		}
 	} else {
@@ -199,6 +202,7 @@ func getOneData(data []interface{}) *OutData {
 		}
 	}
 	ret.Thing, _ = data[5].(string)
+	ret.ProjectId, _ = data[6].(string)
 	return &ret
 }
 
@@ -212,19 +216,19 @@ func getOneDevice(data []interface{}) string {
 	return device
 }
 
-func GetDataByTime(table string, thing, startAt, endAt, device string) (datas []*OutData, err error) {
+func GetDataByTime(table string, thing, startAt, endAt, device, projectId string) (datas []*OutData, err error) {
 	// startAt, endAt like '2019-08-17T06:40:27.995Z'
 	var q client.Query
 	if len(device) > 0 {
 		q = client.Query{
-			Command: fmt.Sprintf("select %s from %s where time >= '%s' and time < '%s' and thing='%s' and device='%s' "+
-				"order by time desc limit 1000", columnStr, table, startAt, endAt, thing, device),
+			Command: fmt.Sprintf("select %s from %s where time >= '%s' and time < '%s' and project_id='%s' and thing='%s' and device='%s' "+
+				"order by time desc limit 1000", columnStr, table, startAt, endAt, projectId, thing, device),
 			Database: dbName,
 		}
 	} else {
 		q = client.Query{
-			Command: fmt.Sprintf("select %s from %s where time >= '%s' and time < '%s' and thing='%s' "+
-				"order by time desc limit 1000", columnStr, table, startAt, endAt, thing),
+			Command: fmt.Sprintf("select %s from %s where time >= '%s' and time < '%s' and project_id='%s' and thing='%s' "+
+				"order by time desc limit 1000", columnStr, table, startAt, endAt, projectId, thing),
 			Database: dbName,
 		}
 	}
@@ -248,10 +252,10 @@ func GetDataByTime(table string, thing, startAt, endAt, device string) (datas []
 	return retList, nil
 }
 
-func GetDevicesByThing(table string, thing string) (devices []string, err error) {
+func GetDevicesByThing(table string, thing, projectId string) (devices []string, err error) {
 	var q client.Query
 	q = client.Query{
-		Command:  fmt.Sprintf("select distinct(device) from %s where thing='%s'", table, thing),
+		Command:  fmt.Sprintf("select distinct(device) from %s where and project_id='%s' thing='%s'", table, projectId, thing),
 		Database: dbName,
 	}
 	logs.Debug("%s", q.Command)
