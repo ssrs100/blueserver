@@ -203,6 +203,7 @@ func getOneData(data []interface{}) *OutData {
 }
 
 func getOneDevice(data []interface{}) string {
+	logs.Debug("%v", data)
 	if len(data) < 2 {
 		logs.Warn("columns less 2")
 		return ""
