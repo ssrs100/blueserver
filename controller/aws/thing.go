@@ -152,9 +152,7 @@ func ListThings(w http.ResponseWriter, req *http.Request, ps map[string]string) 
 			return
 		}
 		limit64 := int64(limitInt)
-		awsReq = iot.ListThingsInput{
-			MaxResults: &limit64,
-		}
+		awsReq.MaxResults = &limit64
 	}
 
 	if len(nextToken) > 0 {
