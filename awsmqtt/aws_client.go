@@ -119,6 +119,7 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 					continue
 				}
 				rd.Thing = s.Thing
+				rd.ProjectId = projectId
 				if err := influxdb.Insert("temperature", &rd); err != nil {
 					logs.Error("%s", err.Error())
 					continue
