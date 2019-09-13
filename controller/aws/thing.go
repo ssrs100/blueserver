@@ -177,7 +177,6 @@ func ListThings(w http.ResponseWriter, req *http.Request, ps map[string]string) 
 	}
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	//_, _ = w.Write([]byte(rsp.String()))
 	_, _ = w.Write(outBytes)
 }
 

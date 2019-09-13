@@ -147,9 +147,6 @@ func getOneData(data []interface{}) *OutData {
 	ret := OutData{}
 	ret.Timestamp, _ = data[0].(string)
 	ret.Device, _ = data[1].(string)
-	//ret.Humidity, _ = data[2].(json.Number)
-	//ret.Rssi, _ = data[3].(json.Number)
-	//ret.Temperature, _ = data[4].(json.Number)
 
 	humi, ok := data[2].(string)
 	if ok {
