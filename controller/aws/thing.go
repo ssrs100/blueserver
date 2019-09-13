@@ -18,6 +18,8 @@ import (
 
 var (
 	region = "us-west-2"
+
+	owner = "owner"
 )
 
 func GetThingLatestData(w http.ResponseWriter, req *http.Request, ps map[string]string) {
@@ -137,7 +139,9 @@ func ListThings(w http.ResponseWriter, req *http.Request, ps map[string]string) 
 	)
 	svc := iot.New(sess, &aws.Config{Credentials: creds, Region: aws.String(region)})
 	awsReq := iot.ListThingsInput{
-		NextToken: nil,
+		AttributeName:  &owner,
+		AttributeValue: &u.Name,
+		NextToken:      nil,
 	}
 	if len(limit) > 0 {
 		limitInt, err := strconv.Atoi(limit)
