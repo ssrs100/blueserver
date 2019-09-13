@@ -251,7 +251,7 @@ func GetDataByTime(table string, thing, startAt, endAt, device string) (datas []
 func GetDevicesByThing(table string, thing string) (devices []string, err error) {
 	var q client.Query
 	q = client.Query{
-		Command:  fmt.Sprintf("select distinct(device) from '%s' where thing='%s'", table, thing),
+		Command:  fmt.Sprintf("select distinct(device) from %s where thing='%s'", table, thing),
 		Database: dbName,
 	}
 	logs.Debug("%s", q.Command)
