@@ -31,7 +31,7 @@ func LoadApi() *httptreemux.TreeMux {
 	s := middleware.NewStack()
 	s.Use(middleware.Auth)
 	// Route for health check
-	router.GET("/v1/heart", s.Wrap(Health))
+	router.GET("/v1/heart", Health)
 
 	// Routes for users
 	router.GET("/v1/users", GetUsers)
@@ -71,15 +71,15 @@ func LoadApi() *httptreemux.TreeMux {
 	router.PUT("/equipment/v1/:projectId/components/:componentId/detail/cancel-modifying", CancelUpdateDetail)
 	router.PUT("/equipment/v1/:projectId/components/:componentId/detail/sync", SyncComponentDetail)
 
-	router.GET("/aws/v1/:projectId/things", aws.ListThings)
-	router.GET("/aws/v1/:projectId/things/:thingName/latest", aws.GetThingLatestData)
-	router.GET("/aws/v1/:projectId/things/:thingName/range-data", aws.GetThingData)
-	router.GET("/aws/v1/:projectId/things/:thingName/device", aws.GetThingDevice)
+	router.GET("/aws/v1/:projectId/things", s.Wrap(aws.ListThings))
+	router.GET("/aws/v1/:projectId/things/:thingName/latest", s.Wrap(aws.GetThingLatestData))
+	router.GET("/aws/v1/:projectId/things/:thingName/range-data", s.Wrap(aws.GetThingData))
+	router.GET("/aws/v1/:projectId/things/:thingName/device", s.Wrap(aws.GetThingDevice))
 
-	router.GET("/aws/v1/:projectId/devices", aws.ListDevices)
-	router.GET("/aws/v1/:projectId/devices/:device/latest", aws.GetDeviceLatestData)
-	router.GET("/aws/v1/:projectId/devices/latest", aws.GetMultiDeviceLatestData)
-	router.GET("/aws/v1/:projectId/devices/:device/range-data", aws.GetDeviceData)
+	router.GET("/aws/v1/:projectId/devices", s.Wrap(aws.ListDevices))
+	router.GET("/aws/v1/:projectId/devices/:device/latest", s.Wrap(aws.GetDeviceLatestData))
+	router.GET("/aws/v1/:projectId/devices/latest", s.Wrap(aws.GetMultiDeviceLatestData))
+	router.GET("/aws/v1/:projectId/devices/:device/range-data", s.Wrap(aws.GetDeviceData))
 	// Routes for attachments
 	router.GET("/app/resource", GetAdPic)
 	return router

@@ -9,6 +9,7 @@ import (
 	"github.com/ssrs100/blueserver/bluedb"
 	utils "github.com/ssrs100/blueserver/common"
 	"github.com/ssrs100/blueserver/controller/aws"
+	"github.com/ssrs100/blueserver/controller/middleware"
 	"github.com/ssrs100/blueserver/mqttclient"
 	"github.com/ssrs100/blueserver/sesscache"
 	"io/ioutil"
@@ -31,13 +32,6 @@ type BindAwsUserReq struct {
 	Name      string `json:"aws_username"`
 	AccessKey string `json:"aws_access_key"`
 	SecretKey string `json:"aws_secret_key"`
-}
-
-type UserSession struct {
-	UserId    string   `json:"user_id"`
-	Roles     []string `json:"roles"`
-	ExpiredAt string   `json:"expired_at"`
-	CreatedAt string   `json:"created_at"`
 }
 
 func (u *User) dbObjectTrans(beacon bluedb.User) User {
@@ -141,7 +135,7 @@ func UserLogin(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 
 	// gen token
 	now := time.Now().UTC()
-	us := UserSession{
+	us := middleware.UserSession{
 		UserId:    user.Id,
 		Roles:     []string{"te_admin"},
 		CreatedAt: now.Format(time.RFC3339),
@@ -173,6 +167,7 @@ func UserLogin(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 		Value: string(tok),
 		Path:  "/",
 	})
+	sesscache.SetWithNoExpired("lastLogin_"+us.UserId, time.Now().Format(time.RFC3339))
 	sesscache.Set(string(tok), sId)
 	logs.Info("key:%s", sId)
 	logs.Info("session:%s", string(tok))

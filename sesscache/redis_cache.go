@@ -26,6 +26,10 @@ func Set(key, value string) {
 	re.Set(key, value, time.Hour*24)
 }
 
+func SetWithNoExpired(key, value string) {
+	re.Set(key, value, 0)
+}
+
 func Get(key string) string {
 	result, err := re.Get(key).Result()
 	if err != nil {

@@ -9,6 +9,8 @@ const (
 	ComponentGatewayType = "GATEWAY"
 
 	CookieSessionId = "X-SessionID-B"
+
+	XAuthB = "X-Auth-B"
 )
 
 func GenToken(id, passwd string) string {
