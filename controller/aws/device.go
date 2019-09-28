@@ -41,7 +41,7 @@ func GetMultiDeviceLatestData(w http.ResponseWriter, req *http.Request, ps map[s
 		_, _ = w.Write([]byte("deviceAddrs is empty"))
 		return
 	}
-
+	logs.Debug("device addr:%s", deviceAddrs)
 	datas := make([]*influxdb.OutData, 0)
 	deviceList := strings.Split(deviceAddrs, ";")
 	for _, device := range deviceList {
