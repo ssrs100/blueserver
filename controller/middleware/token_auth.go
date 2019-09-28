@@ -26,6 +26,10 @@ func Auth(fn httptreemux.HandlerFunc) httptreemux.HandlerFunc {
 		//	http.Error(w, http.StatusText(400), http.StatusBadRequest)
 		//	return
 		//}
+		if conf.GetInt("enable_auth") == 0 {
+			fn(w, r, ps)
+			return
+		}
 		token := r.Header.Get(common.XAuthB)
 		logs.Info("session:%s", token)
 		k := sesscache.Get(token)
