@@ -26,7 +26,7 @@ func Auth(fn httptreemux.HandlerFunc) httptreemux.HandlerFunc {
 		//	http.Error(w, http.StatusText(400), http.StatusBadRequest)
 		//	return
 		//}
-		if conf.GetInt("enable_auth") == 0 {
+		if conf.GetInt("enable_auth") == -1 {
 			fn(w, r, ps)
 			return
 		}
