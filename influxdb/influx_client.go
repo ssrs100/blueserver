@@ -20,6 +20,8 @@ type ReportData struct {
 	Rssi        json.Number `json:"rssi"`
 	Temperature json.Number `json:"temperature"`
 	Humidity    json.Number `json:"humidity"`
+	DeviceName  string      `json:"device_name"`
+	Power       string      `json:"power"`
 }
 
 type OutData struct {
@@ -30,6 +32,8 @@ type OutData struct {
 	Rssi        json.Number `json:"rssi"`
 	Temperature json.Number `json:"temperature"`
 	Humidity    json.Number `json:"humidity"`
+	DeviceName  string      `json:"device_name"`
+	Power       string      `json:"power"`
 }
 
 type OutDataList struct {
@@ -50,9 +54,29 @@ var influx InfluxClient
 const (
 	dbName    = "blue"
 	retention = "default"
+
+	columnTime        = "time"
+	columnDevice      = "device"
+	columnHumidity    = "humidity"
+	columnRssi        = "rssi"
+	columnTemperature = "temperature"
+	columnThing       = "thing"
+	columnProjectId   = "project_id"
+	columnDeviceName  = "device_name"
+	columnPower       = "power"
 )
 
-var columns = []string{"time", "device", "humidity", "rssi", "temperature", "thing", "project_id"}
+var columns = []string{
+	columnTime,
+	columnDevice,
+	columnHumidity,
+	columnRssi,
+	columnTemperature,
+	columnThing,
+	columnProjectId,
+	columnDeviceName,
+	columnPower,
+}
 var columnStr string
 
 func init() {
@@ -77,12 +101,14 @@ func InitFlux() {
 
 func Insert(table string, data *ReportData) error {
 	fields := make(map[string]interface{})
-	fields["device"] = data.Device
-	fields["temperature"] = string(data.Temperature)
-	fields["humidity"] = string(data.Humidity)
-	fields["rssi"] = string(data.Rssi)
-	fields["thing"] = data.Thing
-	fields["project_id"] = data.ProjectId
+	fields[columnDevice] = data.Device
+	fields[columnTemperature] = string(data.Temperature)
+	fields[columnHumidity] = string(data.Humidity)
+	fields[columnRssi] = string(data.Rssi)
+	fields[columnThing] = data.Thing
+	fields[columnProjectId] = data.ProjectId
+	fields[columnDeviceName] = data.DeviceName
+	fields[columnPower] = data.Power
 	rdTime := time.Unix(0, data.Timestamp*1000000)
 
 	pts := make([]client.Point, 0)
@@ -107,19 +133,19 @@ func Insert(table string, data *ReportData) error {
 }
 
 func GetLatest(table string, thing, device, projectId string) (data *OutData, err error) {
-	var q client.Query
+	cmd := fmt.Sprintf("select %s from %s where project_id='%s'", columnStr, table, projectId)
+	tail := " order by time desc limit 1"
+	if len(thing) > 0 {
+		cmd = cmd + fmt.Sprintf(" and thing='%s'", thing)
+	}
 	if len(device) > 0 {
-		q = client.Query{
-			Command: fmt.Sprintf("select %s from %s where project_id='%s' and thing='%s' and device='%s' "+
-				"order by time desc limit 1", columnStr, table, projectId, thing, device),
-			Database: dbName,
-		}
-	} else {
-		q = client.Query{
-			Command: fmt.Sprintf("select %s from %s where project_id='%s' and thing='%s' "+
-				"order by time desc limit 1", columnStr, table, projectId, thing),
-			Database: dbName,
-		}
+		cmd = cmd + fmt.Sprintf(" and device='%s'", device)
+	}
+	cmd = cmd + tail
+
+	q := client.Query{
+		Command:  cmd,
+		Database: dbName,
 	}
 	logs.Debug("%s", q.Command)
 	response, err := influx.c.Query(q)
@@ -200,6 +226,8 @@ func getOneData(data []interface{}) *OutData {
 	}
 	ret.Thing, _ = data[5].(string)
 	ret.ProjectId, _ = data[6].(string)
+	ret.DeviceName, _ = data[7].(string)
+	ret.Power, _ = data[8].(string)
 	return &ret
 }
 
@@ -215,19 +243,18 @@ func getOneDevice(data []interface{}) string {
 
 func GetDataByTime(table string, thing, startAt, endAt, device, projectId string) (datas []*OutData, err error) {
 	// startAt, endAt like '2019-08-17T06:40:27.995Z'
-	var q client.Query
+	cmd := fmt.Sprintf("select %s from %s where time >= '%s' and time < '%s' and project_id='%s'", columnStr, table, startAt, endAt, projectId)
+	tail := " order by time desc limit 1000"
+	if len(thing) > 0 {
+		cmd = cmd + fmt.Sprintf(" and thing='%s'", thing)
+	}
 	if len(device) > 0 {
-		q = client.Query{
-			Command: fmt.Sprintf("select %s from %s where time >= '%s' and time < '%s' and project_id='%s' and thing='%s' and device='%s' "+
-				"order by time desc limit 1000", columnStr, table, startAt, endAt, projectId, thing, device),
-			Database: dbName,
-		}
-	} else {
-		q = client.Query{
-			Command: fmt.Sprintf("select %s from %s where time >= '%s' and time < '%s' and project_id='%s' and thing='%s' "+
-				"order by time desc limit 1000", columnStr, table, startAt, endAt, projectId, thing),
-			Database: dbName,
-		}
+		cmd = cmd + fmt.Sprintf(" and device='%s'", device)
+	}
+	cmd = cmd + tail
+	q := client.Query{
+		Command:  cmd,
+		Database: dbName,
 	}
 	logs.Debug("%s", q.Command)
 	response, err := influx.c.Query(q)
@@ -250,9 +277,13 @@ func GetDataByTime(table string, thing, startAt, endAt, device, projectId string
 }
 
 func GetDevicesByThing(table string, thing, projectId string) (devices []string, err error) {
+	cmd := fmt.Sprintf("select distinct(device) from %s where project_id='%s'", table, projectId)
+	if len(thing) > 0 {
+		cmd = cmd + fmt.Sprintf(" and thing='%s'", thing)
+	}
 	var q client.Query
 	q = client.Query{
-		Command:  fmt.Sprintf("select distinct(device) from %s where project_id='%s' and thing='%s'", table, projectId, thing),
+		Command:  cmd,
 		Database: dbName,
 	}
 	logs.Debug("%s", q.Command)
