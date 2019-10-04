@@ -9,7 +9,10 @@ import (
 	"github.com/ssrs100/blueserver/bluedb"
 	"github.com/ssrs100/blueserver/influxdb"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"runtime"
+	"syscall"
 )
 
 const (
@@ -31,5 +34,18 @@ func main() {
 		logs.Error(errStr)
 		os.Exit(1)
 	}
+	go signalHandle()
+
 	awsmqtt.InitAwsClient()
+}
+
+func signalHandle() {
+	ch := make(chan os.Signal)
+	signal.Notify(ch, syscall.SIGINT, syscall.SIGUSR1)
+	for {
+		<-ch
+		var buf [4096]byte
+		n := runtime.Stack(buf[:], false)
+		fmt.Printf("==> %s\n", string(buf[:n]))
+	}
 }
