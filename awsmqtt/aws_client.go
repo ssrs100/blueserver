@@ -114,6 +114,7 @@ func InitAwsClient() {
 			continue
 		}
 		go awsIC.startAwsClient(user.Id, stopChan)
+		awsIC.initSns()
 		useClientCache[u] = &awsIC
 	}
 	logs.Info("start aws client success")
@@ -220,6 +221,9 @@ func (ac *AwsIotClient) initSns() {
 		"",
 	)
 	ac.snsClient = sns.New(sess, &aws.Config{Credentials: creds, Region: aws.String("us-west-2")})
+	if ac.snsClient == nil {
+		logs.Error("init sns user err:%s", ac.user.Name)
+	}
 }
 
 func (ac *AwsIotClient) sendSns(key string, data *influxdb.ReportData, upperLimit, isClean bool) {
