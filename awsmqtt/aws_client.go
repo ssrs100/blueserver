@@ -19,6 +19,7 @@ import (
 	"github.com/ssrs100/blueserver/influxdb"
 	"io/ioutil"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"time"
 )
@@ -226,6 +227,9 @@ func (ac *AwsIotClient) sendSns(key string, data *influxdb.ReportData, upperLimi
 	defer func() {
 		if p := recover(); p != nil {
 			logs.Error("panic err:%v", p)
+			var buf [4096]byte
+			n := runtime.Stack(buf[:], false)
+			logs.Error("==> %s\n", string(buf[:n]))
 		}
 	}()
 	if isClean {
