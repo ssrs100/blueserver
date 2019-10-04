@@ -182,7 +182,7 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 				// humidity
 				if hum >= threshDevice.maxHum {
 					go ac.sendSns(humidityKey, &rd, true, false)
-				} else if tmp < threshDevice.minHum {
+				} else if hum < threshDevice.minHum {
 					go ac.sendSns(humidityKey, &rd, false, false)
 				} else {
 					go ac.sendSns(humidityKey, &rd, false, true)
