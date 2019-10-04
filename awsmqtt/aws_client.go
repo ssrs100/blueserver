@@ -108,6 +108,7 @@ func InitAwsClient() {
 
 		awsIC := AwsIotClient{}
 		awsIC.awsClient = client
+		awsIC.user = user
 		awsIC.reportChan, err = awsIC.awsClient.SubscribeForThingReport()
 		if err != nil {
 			logs.Error("subscribe user(%s) thing report fail", u)
