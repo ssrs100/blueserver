@@ -11,6 +11,11 @@ const (
 	CookieSessionId = "X-SessionID-B"
 
 	XAuthB = "X-Auth-B"
+
+	MinTemp = 0
+	MaxTemp = 30
+	MinHumi = 30
+	MaxHumi = 60
 )
 
 func GenToken(id, passwd string) string {

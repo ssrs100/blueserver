@@ -15,6 +15,7 @@ import (
 	"github.com/jack0liu/utils"
 	"github.com/patrickmn/go-cache"
 	"github.com/ssrs100/blueserver/bluedb"
+	"github.com/ssrs100/blueserver/common"
 	"github.com/ssrs100/blueserver/influxdb"
 	"io/ioutil"
 	"path/filepath"
@@ -33,13 +34,26 @@ type AwsIotClient struct {
 	user       *bluedb.User
 }
 
-var msgTemplate = "[notice]device(%s) thing(%s) temperature is %v, it has exceeded threshold, please pay attention to it."
+type thresh struct {
+	minTemp int
+	maxTemp int
+	minHum  int
+	maxHum  int
+}
 
-var cleanTemplate = "[clean]device(%s) thing(%s) temperature is %v, it drops below threshold."
+const (
+	tempKey     = "temperature"
+	humidityKey = "humidity"
+)
 
-var deviceSnsCache *cache.Cache
+var msgTemplate = "[notice]device(%s) thing(%s) %s is %v, it's out of the range of device settings, please pay attention to it."
 
-var useClientCache map[string]*AwsIotClient
+var cleanTemplate = "[clean]device(%s) thing(%s) %s is %v, it restores back to the range of device settings."
+
+var (
+	deviceSnsCache *cache.Cache
+	useClientCache map[string]*AwsIotClient
+)
 
 var stopChan chan interface{}
 
@@ -106,7 +120,16 @@ func InitAwsClient() {
 }
 
 func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) {
-	tempThresh := conf.GetIntWithDefault("temperature_thresh", 30)
+	tempMinThresh := conf.GetIntWithDefault("temperature_min_thresh", common.MinTemp)
+	tempMaxThresh := conf.GetIntWithDefault("temperature_max_thresh", common.MaxTemp)
+	humiMinThresh := conf.GetIntWithDefault("humi_min_thresh", common.MinHumi)
+	humiMaxThresh := conf.GetIntWithDefault("humi_max_thresh", common.MaxHumi)
+	defaultThresh := thresh{
+		minTemp: tempMinThresh,
+		maxTemp: tempMaxThresh,
+		minHum:  humiMinThresh,
+		maxHum:  humiMaxThresh,
+	}
 	for {
 		select {
 		case s, ok := <-ac.reportChan:
@@ -134,10 +157,35 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 				} else {
 					tmp = int(tmpFloat)
 				}
-				if tmp >= tempThresh {
-					go ac.sendSns(&rd, false)
+
+				// humidity
+				var hum int
+				humFloat, err := strconv.ParseFloat(string(rd.Humidity), 64)
+				if err != nil {
+					hum, err = strconv.Atoi(string(rd.Humidity))
+					if err != nil {
+						logs.Error("humidity err:%v", rd.Humidity)
+					}
 				} else {
-					go ac.sendSns(&rd, true)
+					hum = int(humFloat)
+				}
+
+				threshDevice := getThresh(&rd, &defaultThresh)
+				if tmp >= threshDevice.maxTemp {
+					go ac.sendSns(tempKey, &rd, true, false)
+				} else if tmp < threshDevice.minTemp {
+					go ac.sendSns(tempKey, &rd, false, false)
+				} else {
+					go ac.sendSns(tempKey, &rd, false, true)
+				}
+
+				// humidity
+				if hum >= threshDevice.maxHum {
+					go ac.sendSns(humidityKey, &rd, true, false)
+				} else if tmp < threshDevice.minHum {
+					go ac.sendSns(humidityKey, &rd, false, false)
+				} else {
+					go ac.sendSns(humidityKey, &rd, false, true)
 				}
 				logs.Debug("insert %v", rd)
 				logs.Debug("insert influxdb success")
@@ -146,6 +194,21 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 			logs.Info("stopped")
 		}
 	}
+}
+
+func getThresh(data *influxdb.ReportData, defaultThresh *thresh) *thresh {
+
+	dt, _ := bluedb.QueryDevThresh(data.ProjectId, data.Device)
+	if dt == nil {
+		return defaultThresh
+	}
+	thre := thresh{
+		minTemp: dt.TemperatureMin,
+		maxTemp: dt.TemperatureMax,
+		minHum:  dt.HumidityMin,
+		maxHum:  dt.HumidityMax,
+	}
+	return &thre
 }
 
 func (ac *AwsIotClient) initSns() {
@@ -158,27 +221,40 @@ func (ac *AwsIotClient) initSns() {
 	ac.snsClient = sns.New(sess, &aws.Config{Credentials: creds, Region: aws.String("us-west-2")})
 }
 
-func (ac *AwsIotClient) sendSns(data *influxdb.ReportData, isClean bool) {
+func (ac *AwsIotClient) sendSns(key string, data *influxdb.ReportData, upperLimit, isClean bool) {
 	if isClean {
-		ac.sendCleanMsg(data)
+		ac.sendCleanMsg(key, data)
 	} else {
-		ac.sendNotifyMsg(data)
+		ac.sendNotifyMsg(key, data, upperLimit)
 	}
 }
 
-func (ac *AwsIotClient) sendNotifyMsg(data *influxdb.ReportData) {
-	_, ok := deviceSnsCache.Get(data.Device)
+func (ac *AwsIotClient) sendNotifyMsg(key string, data *influxdb.ReportData, upperLimit bool) {
+	dbKey := key + "upper"
+	if !upperLimit {
+		dbKey = key + "lower"
+	}
+	_, ok := deviceSnsCache.Get(data.Device + dbKey)
 	if ok {
 		return
 	}
-	d, _ := bluedb.QueryNoticeByDevice(data.Device)
+	d, _ := bluedb.QueryNoticeByDevice(data.Device, dbKey)
 	if d != nil {
 		return
 	}
 
 	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelFn()
-	msg := fmt.Sprintf(msgTemplate, data.Device, data.Thing, data.Temperature)
+	value := data.Temperature
+	switch key {
+	case tempKey:
+		value = data.Temperature
+	case humidityKey:
+		value = data.Humidity
+	default:
+		logs.Error("invalid key")
+	}
+	msg := fmt.Sprintf(msgTemplate, data.Device, data.Thing, key, value)
 	params := &sns.PublishInput{
 		Message:  aws.String(msg),
 		TopicArn: aws.String("arn:aws:sns:us-west-2:415890359503:email"),
@@ -198,15 +274,16 @@ func (ac *AwsIotClient) sendNotifyMsg(data *influxdb.ReportData) {
 	n := bluedb.Notify{
 		Device:  data.Device,
 		Noticed: "1",
+		Key:     dbKey,
 	}
-	deviceSnsCache.Set(data.Device, "1", cache.DefaultExpiration)
+	deviceSnsCache.Set(data.Device+dbKey, "1", cache.DefaultExpiration)
 	bluedb.SaveNotice(n)
 }
 
-func (ac *AwsIotClient) sendCleanMsg(data *influxdb.ReportData) {
-	_, ok := deviceSnsCache.Get(data.Device)
+func (ac *AwsIotClient) sendCleanMsg(key string, data *influxdb.ReportData) {
+	_, ok := deviceSnsCache.Get(data.Device + key)
 	if !ok {
-		d, _ := bluedb.QueryNoticeByDevice(data.Device)
+		d, _ := bluedb.QueryNoticeByDevice(data.Device, key)
 		if d == nil {
 			return
 		}
@@ -214,7 +291,16 @@ func (ac *AwsIotClient) sendCleanMsg(data *influxdb.ReportData) {
 
 	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelFn()
-	msg := fmt.Sprintf(cleanTemplate, data.Device, data.Thing, data.Temperature)
+	value := data.Temperature
+	switch key {
+	case tempKey:
+		value = data.Temperature
+	case humidityKey:
+		value = data.Humidity
+	default:
+		logs.Error("invalid key")
+	}
+	msg := fmt.Sprintf(cleanTemplate, data.Device, data.Thing, key, value)
 	params := &sns.PublishInput{
 		Message:  aws.String(msg),
 		TopicArn: aws.String("arn:aws:sns:us-west-2:415890359503:email"),
@@ -231,6 +317,6 @@ func (ac *AwsIotClient) sendCleanMsg(data *influxdb.ReportData) {
 		return
 	}
 	logs.Info("send(%s) clean to sns success", data.Device)
-	deviceSnsCache.Delete(data.Device)
-	bluedb.DeleteNotice(data.Device)
+	deviceSnsCache.Delete(data.Device + key)
+	bluedb.DeleteNotice(data.Device, key)
 }

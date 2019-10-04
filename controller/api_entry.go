@@ -80,6 +80,9 @@ func LoadApi() *httptreemux.TreeMux {
 	router.GET("/aws/v1/:projectId/devices/:device/latest", s.Wrap(aws.GetDeviceLatestData))
 	router.GET("/aws/v1/:projectId/devices/latest", s.Wrap(aws.GetMultiDeviceLatestData))
 	router.GET("/aws/v1/:projectId/devices/:device/range-data", s.Wrap(aws.GetDeviceData))
+
+	router.GET("/aws/v1/:projectId/devices/:device/thresh", s.Wrap(aws.GetDeviceThresh))
+	router.PUT("/aws/v1/:projectId/devices/:device/thresh", s.Wrap(aws.PutDeviceThresh))
 	// Routes for attachments
 	router.GET("/app/resource", GetAdPic)
 	return router

@@ -10,6 +10,7 @@ import (
 type Notify struct {
 	Id      string `orm:"size(64);pk"`
 	Device  string `orm:"size(128)"`
+	Key     string `orm:"size(64)"`
 	Noticed string `orm:"size(32)"`
 }
 
@@ -30,19 +31,20 @@ func SaveNotice(notice Notify) string {
 	return notice.Id
 }
 
-func DeleteNotice(device string) error {
+func DeleteNotice(device, key string) error {
 	o := orm.NewOrm()
-	if _, err := o.Raw("delete from notify where device=?", device).Exec(); err != nil {
+	if _, err := o.Raw("delete from notify where device=? and key=?", device, key).Exec(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func QueryNoticeByDevice(device string) (u *Notify, err error) {
+func QueryNoticeByDevice(device, key string) (u *Notify, err error) {
 	var ns []*Notify
 	o := orm.NewOrm()
 	qs := o.QueryTable("notify")
 	qs = qs.Filter("device", device)
+	qs = qs.Filter("key", key)
 	_, err = qs.All(&ns)
 	if err != nil {
 		logs.Error("query Notice fail, err:%s", err.Error())
