@@ -10,6 +10,7 @@ import (
 type DeviceThresh struct {
 	Id             string `orm:"size(64);pk"`
 	DevId          string `orm:"size(64)"` // db in device
+	ProjectId      string `orm:"size(64)"`
 	DeviceId       string `orm:"size(128)"`
 	TemperatureMin int    `orm:"default(0)"`
 	HumidityMin    int    `orm:"default(0)"`
