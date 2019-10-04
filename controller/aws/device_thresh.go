@@ -107,6 +107,7 @@ func PutDeviceThresh(w http.ResponseWriter, req *http.Request, ps map[string]str
 		}
 		err = bluedb.SaveDevThresh(dt)
 	} else {
+		dt.Id = devt.Id
 		if devThreshReq.TemperatureMin != nil {
 			dt.TemperatureMin = *devThreshReq.TemperatureMin
 		} else {
