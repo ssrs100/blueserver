@@ -235,6 +235,7 @@ func (ac *AwsIotClient) sendNotifyMsg(key string, data *influxdb.ReportData, upp
 	if !upperLimit {
 		dbKey = key + "lower"
 	}
+	logs.Debug("dbKey:%s", dbKey)
 	_, ok := deviceSnsCache.Get(data.Device + dbKey)
 	if ok {
 		return
@@ -243,7 +244,7 @@ func (ac *AwsIotClient) sendNotifyMsg(key string, data *influxdb.ReportData, upp
 	if d != nil {
 		return
 	}
-
+	logs.Debug("send %s start", dbKey)
 	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelFn()
 	value := data.Temperature
