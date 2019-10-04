@@ -222,6 +222,7 @@ func (ac *AwsIotClient) initSns() {
 }
 
 func (ac *AwsIotClient) sendSns(key string, data *influxdb.ReportData, upperLimit, isClean bool) {
+	logs.Debug("send notification for %s , upper:%v, isClean:%v", key, upperLimit, isClean)
 	if isClean {
 		ac.sendCleanMsg(key, data)
 	} else {
