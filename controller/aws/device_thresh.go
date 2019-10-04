@@ -47,9 +47,9 @@ func GetDeviceThresh(w http.ResponseWriter, req *http.Request, ps map[string]str
 		_, _ = w.Write([]byte(err.Error()))
 		return
 	}
-	_, _ = w.Write(body)
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(body)
 }
 
 func PutDeviceThresh(w http.ResponseWriter, req *http.Request, ps map[string]string) {
