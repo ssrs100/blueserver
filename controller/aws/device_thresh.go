@@ -79,7 +79,10 @@ func PutDeviceThresh(w http.ResponseWriter, req *http.Request, ps map[string]str
 		_, _ = w.Write([]byte(err.Error()))
 		return
 	}
-	dt := bluedb.DeviceThresh{}
+	dt := bluedb.DeviceThresh{
+		ProjectId: projectId,
+		DeviceId:  device,
+	}
 	if devt == nil {
 		if devThreshReq.TemperatureMin != nil {
 			dt.TemperatureMin = *devThreshReq.TemperatureMin
