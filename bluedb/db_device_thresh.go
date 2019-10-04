@@ -40,6 +40,18 @@ func SaveDevThresh(dev DeviceThresh) error {
 	return nil
 }
 
+func UpdateDevThresh(dev DeviceThresh) error {
+	o := orm.NewOrm()
+	// update
+	_, err := o.Update(&dev)
+	if err != nil {
+		logs.Error("update dev thresh fail.dev: %v", dev)
+		return err
+	}
+	logs.Info("update dev thresh success")
+	return nil
+}
+
 func DeleteDevThresh(id string) error {
 	o := orm.NewOrm()
 	b := DeviceThresh{Id: id}

@@ -105,6 +105,7 @@ func PutDeviceThresh(w http.ResponseWriter, req *http.Request, ps map[string]str
 		} else {
 			dt.HumidityMax = common.MaxHumi
 		}
+		err = bluedb.SaveDevThresh(dt)
 	} else {
 		if devThreshReq.TemperatureMin != nil {
 			dt.TemperatureMin = *devThreshReq.TemperatureMin
@@ -127,9 +128,10 @@ func PutDeviceThresh(w http.ResponseWriter, req *http.Request, ps map[string]str
 		} else {
 			dt.HumidityMax = devt.HumidityMax
 		}
+		err = bluedb.UpdateDevThresh(dt)
 	}
-	if err := bluedb.SaveDevThresh(dt); err != nil {
-		logs.Error("save dev thresh fail. err:%s", err.Error())
+	if err != nil {
+		logs.Error("modify dev thresh fail. err:%s", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte(err.Error()))
 		return
