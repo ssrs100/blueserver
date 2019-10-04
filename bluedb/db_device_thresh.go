@@ -65,5 +65,5 @@ func QueryDevThresh(projectId, deviceId string) (*DeviceThresh, error) {
 	if len(devices) > 0 {
 		return devices[0], nil
 	}
-	return nil, orm.ErrNoRows
+	return nil, nil
 }
