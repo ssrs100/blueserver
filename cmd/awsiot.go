@@ -45,7 +45,7 @@ func signalHandle() {
 	for {
 		<-ch
 		var buf [4096]byte
-		n := runtime.Stack(buf[:], false)
+		n := runtime.Stack(buf[:], true)
 		logs.Error("==> %s\n", string(buf[:n]))
 	}
 }
