@@ -71,7 +71,9 @@ func LoadApi() *httptreemux.TreeMux {
 	router.PUT("/equipment/v1/:projectId/components/:componentId/detail/cancel-modifying", CancelUpdateDetail)
 	router.PUT("/equipment/v1/:projectId/components/:componentId/detail/sync", SyncComponentDetail)
 
+	// AWS
 	router.GET("/aws/v1/:projectId/things", s.Wrap(aws.ListThings))
+	router.GET("/aws/v2/:projectId/things", s.Wrap(aws.ListThingsV2))
 	router.GET("/aws/v1/:projectId/things/:thingName/latest", s.Wrap(aws.GetThingLatestData))
 	router.GET("/aws/v1/:projectId/things/:thingName/range-data", s.Wrap(aws.GetThingData))
 	router.GET("/aws/v1/:projectId/things/:thingName/device", s.Wrap(aws.GetThingDevice))

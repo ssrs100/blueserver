@@ -224,7 +224,9 @@ func getOneData(data []interface{}) *OutData {
 			}
 		}
 	}
-	ret.Thing, _ = data[5].(string)
+	thingName, _ := data[5].(string)
+	thingSegs := strings.Split(thingName, ":")
+	ret.Thing = thingSegs[0]
 	ret.ProjectId, _ = data[6].(string)
 	ret.DeviceName, _ = data[7].(string)
 	ret.Power, _ = data[8].(string)

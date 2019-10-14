@@ -11,8 +11,10 @@ import (
 	"github.com/jack0liu/logs"
 	"github.com/ssrs100/blueserver/bluedb"
 	"github.com/ssrs100/blueserver/influxdb"
+	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -22,11 +24,144 @@ var (
 	owner = "owner"
 )
 
-func GetThingLatestData(w http.ResponseWriter, req *http.Request, ps map[string]string) {
-	thing := ps["thingName"]
+type RegisterThingReq struct {
+	Name string `json:"name"`
+}
+
+type Thing struct {
+	Id        string     `json:"id"`
+	Name      string     `json:"name"`
+	AwsName   string     `json:"aws_name"`
+	AwsThing  string     `json:"aws_thing"`
+	ProjectId string     `json:"project_id"`
+	CreateAt  *time.Time `json:"create_at"`
+}
+
+type ThingsWrap struct {
+	Things []*Thing `json:"things"`
+}
+
+func awsTingName(name, projectId string) string {
+	return name + ":" + projectId
+}
+
+func RegisterThing(w http.ResponseWriter, req *http.Request, ps map[string]string) {
 	projectId := ps["projectId"]
+	u, err := bluedb.QueryUserById(projectId)
+	if err != nil {
+		logs.Error("Invalid body. err:%s", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte("project id not found"))
+		return
+	}
+	if len(u.AccessKey) == 0 || len(u.SecretKey) == 0 {
+		logs.Info("%s ak/sk is empty, ready to create", u.Name)
+		//TODO: create and bind aws user
+		return
+	}
+	body, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		logs.Error("Receive body failed: %v", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(err.Error()))
+		return
+	}
+	defer req.Body.Close()
+
+	var register = RegisterThingReq{}
+	if err = json.Unmarshal(body, &register); err != nil {
+		logs.Error("Invalid body. err:%s", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(err.Error()))
+		return
+	}
+
+	// check thing name
+	if len(register.Name) == 0 || strings.Contains(register.Name, ":") {
+		errStr := fmt.Sprintf("invalid name:%s.", register.Name)
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(errStr))
+		return
+	}
+	existThing := bluedb.GetThing(projectId, register.Name)
+	if existThing != nil {
+		errStr := fmt.Sprintf("%s exist.", register.Name)
+		logs.Error("%s exist.", register.Name)
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(errStr))
+		return
+	}
+
+	// create thing
+	sess := session.Must(session.NewSession())
+	creds := credentials.NewStaticCredentials(
+		u.AccessKey,
+		u.SecretKey,
+		"",
+	)
+
+	svc := iot.New(sess, &aws.Config{Credentials: creds, Region: aws.String(region)})
+
+	attr := make(map[string]*string)
+	attr["owner"] = &u.Name
+	attrThing := iot.AttributePayload{
+		Attributes: attr,
+	}
+
+	awsThingName := awsTingName(register.Name, projectId)
+	awsReq := iot.CreateThingInput{
+		ThingName:        &awsThingName,
+		AttributePayload: &attrThing,
+	}
+	thingOut, err := svc.CreateThing(&awsReq)
+	if err != nil {
+		logs.Error("create thing err:%s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(err.Error()))
+		return
+	}
+
+	certUrn := bluedb.GetSys("certUrn")
+	attachReq := iot.AttachThingPrincipalInput{
+		ThingName: &awsThingName,
+		Principal: &certUrn,
+	}
+	_, err = svc.AttachThingPrincipal(&attachReq)
+	if err != nil {
+		logs.Error("attach principal err:%s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(err.Error()))
+		return
+	}
+
+	t := bluedb.Thing{
+		Name:      register.Name,
+		AwsName:   awsThingName,
+		AwsThing:  *thingOut.ThingArn,
+		ProjectId: projectId,
+	}
+	if err := bluedb.SaveThing(t); err != nil {
+		logs.Error("save thing err:%s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(err.Error()))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func GetThingLatestData(w http.ResponseWriter, req *http.Request, ps map[string]string) {
+	thingName := ps["thingName"]
+	projectId := ps["projectId"]
+	existThing := bluedb.GetThing(projectId, thingName)
+	if existThing == nil {
+		logs.Error("not found thing %s", thingName)
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte("thing name not found"))
+		return
+	}
 	device := req.URL.Query().Get("device")
-	data, err := influxdb.GetLatest("temperature", thing, device, projectId)
+	data, err := influxdb.GetLatest("temperature", existThing.AwsName, device, projectId)
 	if err != nil {
 		logs.Error("Invalid data. err:%s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -46,8 +181,15 @@ func GetThingLatestData(w http.ResponseWriter, req *http.Request, ps map[string]
 }
 
 func GetThingData(w http.ResponseWriter, req *http.Request, ps map[string]string) {
-	thing := ps["thingName"]
+	thingName := ps["thingName"]
 	projectId := ps["projectId"]
+	existThing := bluedb.GetThing(projectId, thingName)
+	if existThing == nil {
+		logs.Error("not found thing %s", thingName)
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte("thing name not found"))
+		return
+	}
 	startAt := req.URL.Query().Get("startAt")
 	endAt := req.URL.Query().Get("endAt")
 	device := req.URL.Query().Get("device")
@@ -64,7 +206,7 @@ func GetThingData(w http.ResponseWriter, req *http.Request, ps map[string]string
 		_, _ = w.Write([]byte(strErr))
 		return
 	}
-	datas, err := influxdb.GetDataByTime("temperature", thing, startAt, endAt, device, projectId)
+	datas, err := influxdb.GetDataByTime("temperature", existThing.AwsName, startAt, endAt, device, projectId)
 	if err != nil {
 		logs.Error("Invalid data. err:%s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -88,9 +230,16 @@ func GetThingData(w http.ResponseWriter, req *http.Request, ps map[string]string
 }
 
 func GetThingDevice(w http.ResponseWriter, req *http.Request, ps map[string]string) {
-	thing := ps["thingName"]
+	thingName := ps["thingName"]
 	projectId := ps["projectId"]
-	devices, err := influxdb.GetDevicesByThing("temperature", thing, projectId)
+	existThing := bluedb.GetThing(projectId, thingName)
+	if existThing == nil {
+		logs.Error("not found thing %s", thingName)
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte("thing name not found"))
+		return
+	}
+	devices, err := influxdb.GetDevicesByThing("temperature", existThing.AwsName, projectId)
 	if err != nil {
 		logs.Error("Invalid data. err:%s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -110,6 +259,48 @@ func GetThingDevice(w http.ResponseWriter, req *http.Request, ps map[string]stri
 	_, _ = w.Write(body)
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+}
+
+func ListThingsV2(w http.ResponseWriter, req *http.Request, ps map[string]string) {
+	projectId := ps["projectId"]
+	params := make(map[string]interface{})
+	params["project_id"] = projectId
+	limit := req.URL.Query().Get("limit")
+	offset := req.URL.Query().Get("offset")
+	if l, err := strconv.Atoi(limit); err == nil {
+		params["limit"] = l
+	}
+
+	if o, err := strconv.Atoi(offset); err == nil {
+		params["offset"] = o
+	}
+
+	things := bluedb.QueryThings(params)
+	ret := make([]*Thing, 0)
+	for _, t := range things {
+		o := Thing{
+			Id:        t.Id,
+			Name:      t.Name,
+			AwsName:   t.AwsName,
+			AwsThing:  t.AwsThing,
+			ProjectId: t.ProjectId,
+			CreateAt:  t.CreateAt,
+		}
+		ret = append(ret, &o)
+	}
+	list := ThingsWrap{
+		Things: ret,
+	}
+	outBytes, err := json.Marshal(list)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		errStr := fmt.Sprintf("build json err:%s", err.Error())
+		_, _ = w.Write([]byte(errStr))
+		return
+	}
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(outBytes)
 }
 
 func ListThings(w http.ResponseWriter, req *http.Request, ps map[string]string) {
