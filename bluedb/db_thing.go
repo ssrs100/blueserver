@@ -22,7 +22,7 @@ type Thing struct {
 }
 
 func init() {
-	orm.RegisterModel(new(Device))
+	orm.RegisterModel(new(Thing))
 }
 
 func SaveThing(t Thing) error {
