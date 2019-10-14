@@ -32,7 +32,7 @@ type Thing struct {
 	Id        string     `json:"id"`
 	Name      string     `json:"name"`
 	AwsName   string     `json:"aws_name"`
-	AwsThing  string     `json:"aws_thing"`
+	AwsArn    string     `json:"aws_arn"`
 	ProjectId string     `json:"project_id"`
 	CreateAt  *time.Time `json:"create_at"`
 }
@@ -137,7 +137,7 @@ func RegisterThing(w http.ResponseWriter, req *http.Request, ps map[string]strin
 	t := bluedb.Thing{
 		Name:      register.Name,
 		AwsName:   awsThingName,
-		AwsThing:  *thingOut.ThingArn,
+		AwsArn:    *thingOut.ThingArn,
 		ProjectId: projectId,
 	}
 	if err := bluedb.SaveThing(t); err != nil {
@@ -282,7 +282,7 @@ func ListThingsV2(w http.ResponseWriter, req *http.Request, ps map[string]string
 			Id:        t.Id,
 			Name:      t.Name,
 			AwsName:   t.AwsName,
-			AwsThing:  t.AwsThing,
+			AwsArn:    t.AwsArn,
 			ProjectId: t.ProjectId,
 			CreateAt:  t.CreateAt,
 		}
