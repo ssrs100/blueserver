@@ -55,7 +55,7 @@ func Auth(fn httptreemux.HandlerFunc) httptreemux.HandlerFunc {
 				return
 			}
 			if projectId != us.UserId {
-				logs.Error("invalid user session, project id not equal, str:%s", tokenStr)
+				logs.Error("invalid user session, project id(%s) not equal %s, str:%s", projectId, us.UserId, tokenStr)
 				http.Error(w, http.StatusText(401), http.StatusUnauthorized)
 				return
 			}
