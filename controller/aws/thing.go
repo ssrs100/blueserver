@@ -169,9 +169,11 @@ func bindAwsUser(user bluedb.User) (bluedb.User, error) {
 		"",
 	)
 
+	awsUserName := strings.Replace(user.Name, "_", "-", -1)
+
 	svc := iam.New(sess, &aws.Config{Credentials: creds, Region: aws.String(region)})
 	createReq := iam.CreateUserInput{
-		UserName: &user.Name,
+		UserName: &awsUserName,
 	}
 	_, err := svc.CreateUser(&createReq)
 	if err != nil {
@@ -181,7 +183,7 @@ func bindAwsUser(user bluedb.User) (bluedb.User, error) {
 
 	iamGroup := bluedb.GetSys("iamGroup")
 	addGroupReq := iam.AddUserToGroupInput{
-		UserName:  &user.Name,
+		UserName:  &awsUserName,
 		GroupName: &iamGroup,
 	}
 	_, err = svc.AddUserToGroup(&addGroupReq)
@@ -190,7 +192,7 @@ func bindAwsUser(user bluedb.User) (bluedb.User, error) {
 		return user, err
 	}
 	akReq := iam.CreateAccessKeyInput{
-		UserName: &user.Name,
+		UserName: &awsUserName,
 	}
 	akOut, err := svc.CreateAccessKey(&akReq)
 	if err != nil {
@@ -206,7 +208,7 @@ func bindAwsUser(user bluedb.User) (bluedb.User, error) {
 	}
 	ak := akOut.AccessKey.AccessKeyId
 	sk := akOut.AccessKey.SecretAccessKey
-	user.AwsUsername = user.Name
+	user.AwsUsername = awsUserName
 	user.AccessKey = *ak
 	user.SecretKey = *sk
 	if err = bluedb.UpdateUser(user); err != nil {
