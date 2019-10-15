@@ -64,6 +64,7 @@ func RegisterThing(w http.ResponseWriter, req *http.Request, ps map[string]strin
 			_, _ = w.Write([]byte(err.Error()))
 			return
 		}
+		time.Sleep(10 * time.Second)
 	}
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
