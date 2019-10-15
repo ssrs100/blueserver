@@ -8,7 +8,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/private/protocol/json/jsonutil"
-	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/iot"
 	"github.com/jack0liu/logs"
 	"github.com/ssrs100/blueserver/bluedb"
@@ -64,7 +63,6 @@ func RegisterThing(w http.ResponseWriter, req *http.Request, ps map[string]strin
 			_, _ = w.Write([]byte(err.Error()))
 			return
 		}
-		time.Sleep(10 * time.Second)
 	}
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
@@ -164,77 +162,139 @@ func bindAwsUser(user bluedb.User) (bluedb.User, error) {
 		logs.Error("admin user not found")
 		return user, errors.New("admin user not found")
 	}
-	sess := session.Must(session.NewSession())
-	creds := credentials.NewStaticCredentials(
-		admin.AccessKey,
-		admin.SecretKey,
-		"",
-	)
-
-	awsUserName := user.Name
-
-	svc := iam.New(sess, &aws.Config{Credentials: creds, Region: aws.String(region)})
-	createReq := iam.CreateUserInput{
-		UserName: &awsUserName,
-	}
-	logs.Info("create user")
-	_, err := svc.CreateUser(&createReq)
-	if err != nil {
-		logs.Error("create aws user fail, err:%s", err.Error())
-		return user, err
-	}
-
-	logs.Info("bind policy")
-	iamPolicy := bluedb.GetSys("iamPolicy")
-	addPolicyReq := iam.AttachUserPolicyInput{
-		UserName:  &awsUserName,
-		PolicyArn: &iamPolicy,
-	}
-	_, err = svc.AttachUserPolicy(&addPolicyReq)
-	if err != nil {
-		logs.Error("add user(%s) to policy fail, err:%s", user.Name, err.Error())
-		return user, err
-	}
-
-	logs.Info("bind group")
-	iamGroup := bluedb.GetSys("iamGroup")
-	addGroupReq := iam.AddUserToGroupInput{
-		UserName:  &awsUserName,
-		GroupName: &iamGroup,
-	}
-	_, err = svc.AddUserToGroup(&addGroupReq)
-	if err != nil {
-		logs.Error("add user(%s) to group fail, err:%s", user.Name, err.Error())
-		return user, err
-	}
-
-	logs.Info("create ak sk")
-	akReq := iam.CreateAccessKeyInput{
-		UserName: &awsUserName,
-	}
-	akOut, err := svc.CreateAccessKey(&akReq)
-	if err != nil {
-		logs.Error("create ak(%s) fail, err:%s", user.Name, err.Error())
-		return user, err
-	}
-	if akOut == nil ||
-		akOut.AccessKey == nil ||
-		akOut.AccessKey.AccessKeyId == nil ||
-		akOut.AccessKey.SecretAccessKey == nil {
-		logs.Error("create ak(%s) fail, no invalid ak sk", user.Name)
-		return user, errors.New("no invalid ak sk")
-	}
-	ak := akOut.AccessKey.AccessKeyId
-	sk := akOut.AccessKey.SecretAccessKey
-	logs.Info("user(%s) ak(%s) sk(%s) saved", awsUserName, *ak, *sk)
-	user.AwsUsername = awsUserName
-	user.AccessKey = *ak
-	user.SecretKey = *sk
-	if err = bluedb.UpdateUser(user); err != nil {
+	//sess := session.Must(session.NewSession())
+	//creds := credentials.NewStaticCredentials(
+	//	admin.AccessKey,
+	//	admin.SecretKey,
+	//	"",
+	//)
+	//
+	//awsUserName := user.Name
+	//
+	//svc := iam.New(sess, &aws.Config{Credentials: creds, Region: aws.String(region)})
+	//createReq := iam.CreateUserInput{
+	//	UserName: &awsUserName,
+	//}
+	//logs.Info("create user")
+	//_, err := svc.CreateUser(&createReq)
+	//if err != nil {
+	//	logs.Error("create aws user fail, err:%s", err.Error())
+	//	return user, err
+	//}
+	//
+	//logs.Info("bind policy")
+	//iamPolicy := bluedb.GetSys("iamPolicy")
+	//addPolicyReq := iam.AttachUserPolicyInput{
+	//	UserName:  &awsUserName,
+	//	PolicyArn: &iamPolicy,
+	//}
+	//_, err = svc.AttachUserPolicy(&addPolicyReq)
+	//if err != nil {
+	//	logs.Error("add user(%s) to policy fail, err:%s", user.Name, err.Error())
+	//	return user, err
+	//}
+	//
+	//logs.Info("bind group")
+	//iamGroup := bluedb.GetSys("iamGroup")
+	//addGroupReq := iam.AddUserToGroupInput{
+	//	UserName:  &awsUserName,
+	//	GroupName: &iamGroup,
+	//}
+	//_, err = svc.AddUserToGroup(&addGroupReq)
+	//if err != nil {
+	//	logs.Error("add user(%s) to group fail, err:%s", user.Name, err.Error())
+	//	return user, err
+	//}
+	//
+	//logs.Info("create ak sk")
+	//akReq := iam.CreateAccessKeyInput{
+	//	UserName: &awsUserName,
+	//}
+	//akOut, err := svc.CreateAccessKey(&akReq)
+	//if err != nil {
+	//	logs.Error("create ak(%s) fail, err:%s", user.Name, err.Error())
+	//	return user, err
+	//}
+	//if akOut == nil ||
+	//	akOut.AccessKey == nil ||
+	//	akOut.AccessKey.AccessKeyId == nil ||
+	//	akOut.AccessKey.SecretAccessKey == nil {
+	//	logs.Error("create ak(%s) fail, no invalid ak sk", user.Name)
+	//	return user, errors.New("no invalid ak sk")
+	//}
+	//ak := akOut.AccessKey.AccessKeyId
+	//sk := akOut.AccessKey.SecretAccessKey
+	//logs.Info("user(%s) ak(%s) sk(%s) saved", awsUserName, *ak, *sk)
+	//user.AwsUsername = awsUserName
+	//user.AccessKey = *ak
+	//user.SecretKey = *sk
+	user.AwsUsername = admin.AwsUsername
+	user.AccessKey = admin.AccessKey
+	user.SecretKey = admin.SecretKey
+	if err := bluedb.UpdateUser(user); err != nil {
 		logs.Error("update user(%s) fail, err:%s", user.Name, err.Error())
 		return user, err
 	}
 	return user, nil
+}
+
+func RemoveThing(w http.ResponseWriter, req *http.Request, ps map[string]string) {
+	projectId := ps["projectId"]
+	thingName := ps["thingName"]
+	u, err := bluedb.QueryUserById(projectId)
+	if err != nil {
+		logs.Error("Invalid body. err:%s", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte("project id not found"))
+		return
+	}
+
+	existThing := bluedb.GetThing(projectId, thingName)
+	if existThing == nil {
+		errStr := fmt.Sprintf("%s is not exist.", thingName)
+		logs.Error(errStr)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if len(u.AccessKey) == 0 || len(u.SecretKey) == 0 {
+		logs.Info("%s ak/sk is empty", u.Name)
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte("ak/sk is empty"))
+		return
+	}
+
+	// create thing
+	logs.Info("remove thing(%s)", thingName)
+	sess := session.Must(session.NewSession())
+	creds := credentials.NewStaticCredentials(
+		u.AccessKey,
+		u.SecretKey,
+		"",
+	)
+
+	svc := iot.New(sess, &aws.Config{Credentials: creds, Region: aws.String(region)})
+
+	awsThingName := existThing.AwsName
+	awsReq := iot.DeleteThingInput{
+		ThingName: &awsThingName,
+	}
+	_, err = svc.DeleteThing(&awsReq)
+	if err != nil {
+		logs.Error("remove thing err:%s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(err.Error()))
+		return
+	}
+
+	if err := bluedb.DeleteThing(existThing.Id); err != nil {
+		logs.Error("remove db thing err:%s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(err.Error()))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func GetThingLatestData(w http.ResponseWriter, req *http.Request, ps map[string]string) {
