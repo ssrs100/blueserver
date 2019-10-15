@@ -99,6 +99,7 @@ func RegisterThing(w http.ResponseWriter, req *http.Request, ps map[string]strin
 	}
 
 	// create thing
+	logs.Info("create thing with ak(%s) sk(%s)", u.AccessKey, u.SecretKey)
 	sess := session.Must(session.NewSession())
 	creds := credentials.NewStaticCredentials(
 		u.AccessKey,
