@@ -181,6 +181,17 @@ func bindAwsUser(user bluedb.User) (bluedb.User, error) {
 		return user, err
 	}
 
+	iamPolicy := bluedb.GetSys("iamPolicy")
+	addPolicyReq := iam.AttachUserPolicyInput{
+		UserName:  &awsUserName,
+		PolicyArn: &iamPolicy,
+	}
+	_, err = svc.AttachUserPolicy(&addPolicyReq)
+	if err != nil {
+		logs.Error("add user(%s) to policy fail, err:%s", user.Name, err.Error())
+		return user, err
+	}
+
 	iamGroup := bluedb.GetSys("iamGroup")
 	addGroupReq := iam.AddUserToGroupInput{
 		UserName:  &awsUserName,
