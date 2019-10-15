@@ -169,15 +169,24 @@ func bindAwsUser(user bluedb.User) (bluedb.User, error) {
 		"",
 	)
 
-	policy := bluedb.GetSys("iamPolicy")
 	svc := iam.New(sess, &aws.Config{Credentials: creds, Region: aws.String(region)})
 	createReq := iam.CreateUserInput{
-		PermissionsBoundary: &policy,
-		UserName:            &user.Name,
+		UserName: &user.Name,
 	}
 	_, err := svc.CreateUser(&createReq)
 	if err != nil {
 		logs.Error("create aws user fail, err:%s", err.Error())
+		return user, err
+	}
+
+	iamGroup := bluedb.GetSys("iamGroup")
+	addGroupReq := iam.AddUserToGroupInput{
+		UserName:  &user.Name,
+		GroupName: &iamGroup,
+	}
+	_, err = svc.AddUserToGroup(&addGroupReq)
+	if err != nil {
+		logs.Error("add user(%s) to group fail, err:%s", user.Name, err.Error())
 		return user, err
 	}
 	akReq := iam.CreateAccessKeyInput{
