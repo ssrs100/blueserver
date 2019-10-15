@@ -219,6 +219,7 @@ func bindAwsUser(user bluedb.User) (bluedb.User, error) {
 	}
 	ak := akOut.AccessKey.AccessKeyId
 	sk := akOut.AccessKey.SecretAccessKey
+	logs.Info("user(%s) ak(%s) sk(%s) saved", awsUserName, *ak, *sk)
 	user.AwsUsername = awsUserName
 	user.AccessKey = *ak
 	user.SecretKey = *sk
