@@ -273,9 +273,22 @@ func RemoveThing(w http.ResponseWriter, req *http.Request, ps map[string]string)
 		"",
 	)
 
-	svc := iot.New(sess, &aws.Config{Credentials: creds, Region: aws.String(region)})
-
 	awsThingName := existThing.AwsName
+
+	svc := iot.New(sess, &aws.Config{Credentials: creds, Region: aws.String(region)})
+	certUrn := bluedb.GetSys("certUrn")
+	detachReq := iot.DetachThingPrincipalInput{
+		ThingName: &awsThingName,
+		Principal: &certUrn,
+	}
+	_, err = svc.DetachThingPrincipal(&detachReq)
+	if err != nil {
+		logs.Error("detach principal err:%s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(err.Error()))
+		return
+	}
+
 	awsReq := iot.DeleteThingInput{
 		ThingName: &awsThingName,
 	}
