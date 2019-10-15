@@ -2,11 +2,13 @@ package aws
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/private/protocol/json/jsonutil"
+	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/iot"
 	"github.com/jack0liu/logs"
 	"github.com/ssrs100/blueserver/bluedb"
@@ -56,8 +58,12 @@ func RegisterThing(w http.ResponseWriter, req *http.Request, ps map[string]strin
 	}
 	if len(u.AccessKey) == 0 || len(u.SecretKey) == 0 {
 		logs.Info("%s ak/sk is empty, ready to create", u.Name)
-		//TODO: create and bind aws user
-		return
+		u, err = bindAwsUser(u)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(err.Error()))
+			return
+		}
 	}
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
@@ -148,6 +154,57 @@ func RegisterThing(w http.ResponseWriter, req *http.Request, ps map[string]strin
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func bindAwsUser(user bluedb.User) (bluedb.User, error) {
+	admin := bluedb.QueryUserByName("admin")
+	if admin == nil {
+		logs.Error("admin user not found")
+		return user, errors.New("admin user not found")
+	}
+	sess := session.Must(session.NewSession())
+	creds := credentials.NewStaticCredentials(
+		admin.AccessKey,
+		admin.SecretKey,
+		"",
+	)
+
+	policy := bluedb.GetSys("iamPolicy")
+	svc := iam.New(sess, &aws.Config{Credentials: creds, Region: aws.String(region)})
+	createReq := iam.CreateUserInput{
+		PermissionsBoundary: &policy,
+		UserName:            &user.Name,
+	}
+	_, err := svc.CreateUser(&createReq)
+	if err != nil {
+		logs.Error("create aws user fail, err:%s", err.Error())
+		return user, err
+	}
+	akReq := iam.CreateAccessKeyInput{
+		UserName: &user.Name,
+	}
+	akOut, err := svc.CreateAccessKey(&akReq)
+	if err != nil {
+		logs.Error("create ak(%s) fail, err:%s", user.Name, err.Error())
+		return user, err
+	}
+	if akOut == nil ||
+		akOut.AccessKey == nil ||
+		akOut.AccessKey.AccessKeyId == nil ||
+		akOut.AccessKey.SecretAccessKey == nil {
+		logs.Error("create ak(%s) fail, no invalid ak sk", user.Name)
+		return user, errors.New("no invalid ak sk")
+	}
+	ak := akOut.AccessKey.AccessKeyId
+	sk := akOut.AccessKey.SecretAccessKey
+	user.AwsUsername = user.Name
+	user.AccessKey = *ak
+	user.SecretKey = *sk
+	if err = bluedb.UpdateUser(user); err != nil {
+		logs.Error("update user(%s) fail, err:%s", user.Name, err.Error())
+		return user, err
+	}
+	return user, nil
 }
 
 func GetThingLatestData(w http.ResponseWriter, req *http.Request, ps map[string]string) {
