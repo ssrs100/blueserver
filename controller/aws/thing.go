@@ -169,7 +169,7 @@ func bindAwsUser(user bluedb.User) (bluedb.User, error) {
 		"",
 	)
 
-	awsUserName := strings.Replace(user.Name, "_", "-", -1)
+	awsUserName := user.Name
 
 	svc := iam.New(sess, &aws.Config{Credentials: creds, Region: aws.String(region)})
 	createReq := iam.CreateUserInput{
