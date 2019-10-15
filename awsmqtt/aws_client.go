@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -144,8 +145,14 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 					logs.Error("err:%s", err.Error())
 					continue
 				}
-				rd.Thing = s.Thing
-				rd.ProjectId = projectId
+				thingSegs := strings.Split(s.Thing, ":")
+				if len(thingSegs) > 1 {
+					rd.Thing = thingSegs[0]
+					rd.ProjectId = thingSegs[1]
+				} else {
+					rd.Thing = s.Thing
+					rd.ProjectId = projectId
+				}
 				if err := influxdb.Insert("temperature", &rd); err != nil {
 					logs.Error("%s", err.Error())
 					continue

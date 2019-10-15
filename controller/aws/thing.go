@@ -321,7 +321,7 @@ func GetThingLatestData(w http.ResponseWriter, req *http.Request, ps map[string]
 		return
 	}
 	device := req.URL.Query().Get("device")
-	data, err := influxdb.GetLatest("temperature", existThing.AwsName, device, projectId)
+	data, err := influxdb.GetLatest("temperature", thingName, device, projectId)
 	if err != nil {
 		logs.Error("Invalid data. err:%s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -366,7 +366,7 @@ func GetThingData(w http.ResponseWriter, req *http.Request, ps map[string]string
 		_, _ = w.Write([]byte(strErr))
 		return
 	}
-	datas, err := influxdb.GetDataByTime("temperature", existThing.AwsName, startAt, endAt, device, projectId)
+	datas, err := influxdb.GetDataByTime("temperature", thingName, startAt, endAt, device, projectId)
 	if err != nil {
 		logs.Error("Invalid data. err:%s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -399,7 +399,7 @@ func GetThingDevice(w http.ResponseWriter, req *http.Request, ps map[string]stri
 		_, _ = w.Write([]byte("thing name not found"))
 		return
 	}
-	devices, err := influxdb.GetDevicesByThing("temperature", existThing.AwsName, projectId)
+	devices, err := influxdb.GetDevicesByThing("temperature", thingName, projectId)
 	if err != nil {
 		logs.Error("Invalid data. err:%s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
