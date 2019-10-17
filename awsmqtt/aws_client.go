@@ -83,7 +83,11 @@ func InitAwsClient() {
 	certDir := filepath.Join(baseDir, "conf", "cert")
 	users := listAllDir(certDir)
 	for _, u := range users {
-		user := bluedb.QueryUserByName(u)
+		user, err := bluedb.QueryUserByName(u)
+		if err != nil {
+			logs.Error("get user(%s) fail, err:%s", err.Error())
+			continue
+		}
 		if user == nil || len(user.AccessKey) == 0 || len(user.SecretKey) == 0 {
 			logs.Error("get user(%s) fail, or no ak sk set", u)
 			continue

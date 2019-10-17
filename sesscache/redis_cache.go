@@ -26,6 +26,10 @@ func Set(key, value string) {
 	re.Set(key, value, time.Hour*24)
 }
 
+func SetWithExpired(key, value string, expiration time.Duration) {
+	re.Set(key, value, expiration)
+}
+
 func SetWithNoExpired(key, value string) {
 	re.Set(key, value, 0)
 }

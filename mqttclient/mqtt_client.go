@@ -78,7 +78,11 @@ func InitClient() *MQTTClient {
 	opts.AddBroker(broker)
 	opts.SetClientID(conf.GetStringWithDefault("clientId", ClientId))
 	opts.SetStore(myNoOpStore)
-	admin := bluedb.QueryUserByName("admin")
+	admin, err := bluedb.QueryUserByName("admin")
+	if err != nil {
+		logs.Error("get admin err:%s", err.Error())
+		return nil
+	}
 	if admin == nil {
 		logs.Error("admin user not found")
 		return nil

@@ -12,6 +12,7 @@ type User struct {
 	Name        string `orm:"size(128)"`
 	Passwd      string `orm:"size(128)"`
 	Email       string `orm:"size(128);null"`
+	Status      int    `orm:"default(0)"`
 	Mobile      string `orm:"size(128);null"`
 	Address     string `orm:"size(512);null"`
 	AwsUsername string `orm:"size(128);null"`
@@ -128,12 +129,12 @@ func QueryUserByEmail(email string) *User {
 	}
 }
 
-func QueryUserByName(name string) *User {
+func QueryUserByName(name string) (*User, error) {
 	var users []User
 	qb, err := orm.NewQueryBuilder("mysql")
 	if err != nil {
 		logs.Error("build sql error:%s", err.Error())
-		return nil
+		return nil, err
 	}
 
 	// 构建查询对象
@@ -146,8 +147,8 @@ func QueryUserByName(name string) *User {
 	o := orm.NewOrm()
 	o.Raw(sql, name).QueryRows(&users)
 	if len(users) > 0 {
-		return &users[0]
+		return &users[0], nil
 	} else {
-		return nil
+		return nil, nil
 	}
 }

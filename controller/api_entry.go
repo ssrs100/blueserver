@@ -34,6 +34,7 @@ func LoadApi() *httptreemux.TreeMux {
 	router.GET("/v1/heart", Health)
 
 	// Routes for users
+	router.GET("/active", ActiveUser)
 	router.GET("/v1/users", GetUsers)
 	router.GET("/v1/users/:projectId", GetUser)
 	router.POST("/v1/users", CreateUser)

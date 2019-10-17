@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/astaxie/beego/utils"
 	"github.com/fernet/fernet-go"
+	"github.com/jack0liu/conf"
 	"github.com/jack0liu/logs"
 	"github.com/ssrs100/blueserver/bluedb"
-	utils "github.com/ssrs100/blueserver/common"
+	"github.com/ssrs100/blueserver/common"
 	"github.com/ssrs100/blueserver/controller/aws"
 	"github.com/ssrs100/blueserver/controller/middleware"
 	"github.com/ssrs100/blueserver/mqttclient"
@@ -17,6 +19,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+)
+
+const (
+	Confirmed   = 1
+	UnConfirmed = 0
 )
 
 type User struct {
@@ -111,7 +118,12 @@ func UserLogin(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 
 	var user *bluedb.User
 	if len(userReq.Name) > 0 {
-		user = bluedb.QueryUserByName(userReq.Name)
+		user, err = bluedb.QueryUserByName(userReq.Name)
+		if err != nil {
+			logs.Error("get user err:%s", err.Error())
+			DefaultHandler.ServeHTTP(w, req, err, http.StatusBadRequest)
+			return
+		}
 		if user == nil || user.Passwd != userReq.Passwd {
 			strErr := "invalid user or passwd."
 			logs.Error(strErr)
@@ -163,7 +175,7 @@ func UserLogin(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 		return
 	}
 	http.SetCookie(w, &http.Cookie{
-		Name:  utils.CookieSessionId,
+		Name:  common.CookieSessionId,
 		Value: string(tok),
 		Path:  "/",
 	})
@@ -178,6 +190,41 @@ func UserLogin(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 		Token:     string(tok),
 	})
 	w.WriteHeader(http.StatusOK)
+}
+
+func ActiveUser(w http.ResponseWriter, req *http.Request, _ map[string]string) {
+	token := req.URL.Query().Get("token")
+	k := sesscache.Get(token)
+	if len(k) == 0 {
+		logs.Error("invalid active token")
+		redirectAddr := conf.GetString("redirect_addr")
+		http.Redirect(w, req, redirectAddr, http.StatusFound)
+		return
+	}
+	logs.Info("key:%s", k)
+	keys := fernet.MustDecodeKeys(k)
+	tokenStr := fernet.VerifyAndDecrypt([]byte(token), 0, keys)
+	if len(tokenStr) == 0 {
+		sesscache.Del(token)
+		http.Error(w, http.StatusText(401), http.StatusUnauthorized)
+		return
+	}
+	userId := string(tokenStr)
+	u, err := bluedb.QueryUserById(userId)
+	if err != nil {
+		logs.Error("get user(%s) err:%s", userId, err.Error())
+		http.Error(w, http.StatusText(401), http.StatusUnauthorized)
+		return
+	}
+	u.Status = Confirmed
+	if err := bluedb.UpdateUser(u); err != nil {
+		logs.Error("update user(%s) err:%s", userId, err.Error())
+		http.Error(w, http.StatusText(401), http.StatusUnauthorized)
+		return
+	}
+	logs.Info("user(%s) active success", u.Email)
+	redirectAddr := conf.GetString("redirect_addr")
+	http.Redirect(w, req, redirectAddr, http.StatusFound)
 }
 
 func CreateUser(w http.ResponseWriter, req *http.Request, _ map[string]string) {
@@ -227,36 +274,98 @@ func CreateUser(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 		return
 	}
 
-	user = bluedb.QueryUserByName(name)
-	if user != nil {
-		strErr := fmt.Sprintf("username(%s) has been registed.", name)
+	user, err = bluedb.QueryUserByName(name)
+	if err != nil {
+		strErr := fmt.Sprintf("get username(%s) err:%s.", name, err.Error())
 		logs.Error(strErr)
 		DefaultHandler.ServeHTTP(w, req, errors.New(strErr), http.StatusBadRequest)
 		return
 	}
 
-	logs.Info("create user:%v", userReq)
-	var userDb = bluedb.User{
-		Name:    name,
-		Passwd:  passwd,
-		Email:   email,
-		Mobile:  userReq.Mobile,
-		Address: userReq.Address,
+	userId := ""
+	if user != nil && user.Status == Confirmed {
+		strErr := fmt.Sprintf("username(%s) has been registed.", name)
+		logs.Error(strErr)
+		DefaultHandler.ServeHTTP(w, req, errors.New(strErr), http.StatusBadRequest)
+		return
+	} else if user == nil {
+		logs.Info("create user:%v", userReq)
+		var userDb = bluedb.User{
+			Name:    name,
+			Passwd:  passwd,
+			Email:   email,
+			Mobile:  userReq.Mobile,
+			Address: userReq.Address,
+			Status:  UnConfirmed,
+		}
+		userId = bluedb.CreateUser(userDb)
+		if len(userId) <= 0 {
+			logs.Error("Create user fail. err:%s", err.Error())
+			DefaultHandler.ServeHTTP(w, req, err, http.StatusBadRequest)
+			return
+		}
+	} else {
+		userId = user.Id
 	}
-	id := bluedb.CreateUser(userDb)
-	if len(id) <= 0 {
-		logs.Error("Create user fail. err:%s", err.Error())
-		DefaultHandler.ServeHTTP(w, req, err, http.StatusBadRequest)
+
+	// gen token
+	key := fernet.Key{}
+	err = key.Generate()
+	if err != nil {
+		logs.Error("Invalid key. err:%s", err.Error())
+		DefaultHandler.ServeHTTP(w, req, err, http.StatusInternalServerError)
+		return
+	}
+	sId := key.Encode()
+	sess, err := json.Marshal(&userId)
+	if err != nil {
+		logs.Error("Invalid sess. err:%s", err.Error())
+		DefaultHandler.ServeHTTP(w, req, err, http.StatusInternalServerError)
+		return
+	}
+	k := fernet.MustDecodeKeys(sId)
+	tok, err := fernet.EncryptAndSign(sess, k[0])
+	if err != nil {
+		logs.Error("encrypt sess. err:%s", err.Error())
+		DefaultHandler.ServeHTTP(w, req, err, http.StatusInternalServerError)
 		return
 	}
 
-	//notify mqtt
-	if mqttclient.Client != nil {
-		mqttclient.Client.NotifyUserAdd(name, passwd, id)
+	if err := sendActivateEmail([]string{email}, string(tok)); err != nil {
+		logs.Error("send email err:%s", err.Error())
+		DefaultHandler.ServeHTTP(w, req, err, http.StatusBadRequest)
+		return
 	}
+	sesscache.SetWithExpired(string(tok), sId, 20*time.Minute)
+
+	//notify mqtt
+	//if mqttclient.Client != nil {
+	//	mqttclient.Client.NotifyUserAdd(name, passwd, userId)
+	//}
 	w.WriteHeader(http.StatusOK)
 	w.Header().Add("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(CreateUserResponse{ProjectId: id})
+	json.NewEncoder(w).Encode(CreateUserResponse{ProjectId: userId})
+}
+
+func sendActivateEmail(toUserEmails []string, token string) error {
+	email := bluedb.GetSys("sysEmailUser")
+	pwd := bluedb.GetSys("sysEmailPwd")
+	config := fmt.Sprintf(`{"username":"%s","password":"%s","host":"smtp.exmail.qq.com","port":25}`, email, pwd)
+	temail := utils.NewEMail(config)
+	temail.To = toUserEmails
+	temail.From = email
+	temail.Subject = "Please verify your email for your Feasycom Account"
+
+	redirectAddr := conf.GetString("redirect_addr")
+	temail.HTML = "Please verify your email address by clicking the following link:<br/>" +
+		"<href>" + redirectAddr + "/active?token=" + token + "</href><br/>It will expire in 20 minutes."
+
+	err := temail.Send()
+	if err != nil {
+		logs.Error("send email fail, err:%s", err.Error())
+		return err
+	}
+	return nil
 }
 
 func BindAwsUser(w http.ResponseWriter, req *http.Request, ps map[string]string) {

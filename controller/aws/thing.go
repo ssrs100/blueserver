@@ -157,7 +157,11 @@ func RegisterThing(w http.ResponseWriter, req *http.Request, ps map[string]strin
 }
 
 func bindAwsUser(user bluedb.User) (bluedb.User, error) {
-	admin := bluedb.QueryUserByName("admin")
+	admin, err := bluedb.QueryUserByName("admin")
+	if err != nil {
+		logs.Error("get admin err:%s", err.Error())
+		return user, errors.New("get admin err")
+	}
 	if admin == nil {
 		logs.Error("admin user not found")
 		return user, errors.New("admin user not found")
