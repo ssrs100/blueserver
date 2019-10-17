@@ -305,6 +305,7 @@ func CreateUser(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 			return
 		}
 	} else {
+		logs.Info("unconfirmed user(%s)", name)
 		userId = user.Id
 	}
 
@@ -339,9 +340,9 @@ func CreateUser(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 	sesscache.SetWithExpired(string(tok), sId, 20*time.Minute)
 
 	//notify mqtt
-	//if mqttclient.Client != nil {
-	//	mqttclient.Client.NotifyUserAdd(name, passwd, userId)
-	//}
+	if mqttclient.Client != nil {
+		mqttclient.Client.NotifyUserAdd(name, passwd, userId)
+	}
 	w.WriteHeader(http.StatusOK)
 	w.Header().Add("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(CreateUserResponse{ProjectId: userId})
@@ -358,7 +359,7 @@ func sendActivateEmail(toUserEmails []string, token string) error {
 
 	redirectAddr := conf.GetString("redirect_addr")
 	temail.HTML = "Please verify your email address by clicking the following link:<br/>" +
-		"<href>" + redirectAddr + "/active?token=" + token + "</href><br/>It will expire in 20 minutes."
+		"<href>" + redirectAddr + "/feasycom/active?token=" + token + "</href><br/>It will expire in 20 minutes."
 
 	err := temail.Send()
 	if err != nil {
