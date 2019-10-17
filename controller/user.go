@@ -354,7 +354,7 @@ func CreateUser(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Header().Add("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(CreateUserResponse{ProjectId: userId})
+	_, _ = w.Write([]byte("Please login your email to active your account in 20 minutes."))
 }
 
 func sendActivateEmail(toUserEmails []string, token string) error {
