@@ -210,6 +210,7 @@ func ActiveUser(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 		return
 	}
 	userId := string(tokenStr)
+	userId = strings.Trim(userId, "\"")
 	u, err := bluedb.QueryUserById(userId)
 	if err != nil {
 		logs.Error("get user(%s) err:%s", userId, err.Error())
