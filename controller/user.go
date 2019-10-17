@@ -145,6 +145,13 @@ func UserLogin(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 		return
 	}
 
+	if user.Status != Confirmed {
+		strErr := fmt.Sprintf("user(%s)(%s) is not been actived.", user.Name, user.Email)
+		logs.Error(strErr)
+		DefaultHandler.ServeHTTP(w, req, errors.New(strErr), http.StatusBadRequest)
+		return
+	}
+
 	// gen token
 	now := time.Now().UTC()
 	us := middleware.UserSession{
