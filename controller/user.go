@@ -267,7 +267,7 @@ func CreateUser(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 	}
 
 	user := bluedb.QueryUserByEmail(email)
-	if user != nil {
+	if user != nil && user.Status == Confirmed {
 		strErr := fmt.Sprintf("Email(%s) has been registed.", email)
 		logs.Error(strErr)
 		DefaultHandler.ServeHTTP(w, req, errors.New(strErr), http.StatusBadRequest)
@@ -281,14 +281,15 @@ func CreateUser(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 		DefaultHandler.ServeHTTP(w, req, errors.New(strErr), http.StatusBadRequest)
 		return
 	}
-
-	userId := ""
 	if user != nil && user.Status == Confirmed {
 		strErr := fmt.Sprintf("username(%s) has been registed.", name)
 		logs.Error(strErr)
 		DefaultHandler.ServeHTTP(w, req, errors.New(strErr), http.StatusBadRequest)
 		return
-	} else if user == nil {
+	}
+
+	userId := ""
+	if user == nil {
 		logs.Info("create user:%v", userReq)
 		var userDb = bluedb.User{
 			Name:    name,
