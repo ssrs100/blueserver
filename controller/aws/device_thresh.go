@@ -63,7 +63,7 @@ func PutDeviceThresh(w http.ResponseWriter, req *http.Request, ps map[string]str
 		return
 	}
 	defer req.Body.Close()
-
+        logs.Info("body:%s", string(body))
 	var devThreshReq = &DevThresh{}
 	err = json.Unmarshal(body, devThreshReq)
 	if err != nil {
@@ -105,6 +105,7 @@ func PutDeviceThresh(w http.ResponseWriter, req *http.Request, ps map[string]str
 		} else {
 			dt.HumidityMax = common.MaxHumi
 		}
+                logs.Info("save to (%v)", dt)
 		err = bluedb.SaveDevThresh(dt)
 	} else {
 		dt.Id = devt.Id
@@ -129,6 +130,7 @@ func PutDeviceThresh(w http.ResponseWriter, req *http.Request, ps map[string]str
 		} else {
 			dt.HumidityMax = devt.HumidityMax
 		}
+                logs.Info("update to (%v)", dt)
 		err = bluedb.UpdateDevThresh(dt)
 	}
 	if err != nil {

@@ -43,7 +43,7 @@ func SaveDevThresh(dev DeviceThresh) error {
 func UpdateDevThresh(dev DeviceThresh) error {
 	o := orm.NewOrm()
 	// update
-	_, err := o.Update(&dev)
+	_, err := o.Update(&dev, "temperature_min", "humidity_min", "temperature_max", "humidity_max")
 	if err != nil {
 		logs.Error("update dev thresh fail.dev: %v", dev)
 		return err
