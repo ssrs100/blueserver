@@ -72,6 +72,7 @@ func PutDeviceThresh(w http.ResponseWriter, req *http.Request, ps map[string]str
 		_, _ = w.Write([]byte(err.Error()))
 		return
 	}
+	logs.Info("devThreshReq:%v", devThreshReq)
 	devt, err := bluedb.QueryDevThresh(projectId, device)
 	if err != nil {
 		logs.Error("get dev thresh fail. err:%s", err.Error())
