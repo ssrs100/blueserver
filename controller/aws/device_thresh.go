@@ -10,12 +10,12 @@ import (
 )
 
 type DevThresh struct {
-	ProjectId      string `json:"project_id;omitempty"`
-	Device         string `json:"device;omitempty"`
-	TemperatureMin int    `json:"temperature_min;omitempty"`
-	TemperatureMax int    `json:"temperature_max;omitempty"`
-	HumidityMin    int    `json:"humidity_min;omitempty"`
-	HumidityMax    int    `json:"humidity_max;omitempty"`
+	ProjectId      string `json:"project_id"`
+	Device         string `json:"device"`
+	TemperatureMin *int   `json:"temperature_min"`
+	TemperatureMax *int   `json:"temperature_max"`
+	HumidityMin    *int   `json:"humidity_min"`
+	HumidityMax    *int   `json:"humidity_max"`
 }
 
 func GetDeviceThresh(w http.ResponseWriter, req *http.Request, ps map[string]string) {
