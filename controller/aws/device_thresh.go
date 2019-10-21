@@ -63,7 +63,7 @@ func PutDeviceThresh(w http.ResponseWriter, req *http.Request, ps map[string]str
 		return
 	}
 	defer req.Body.Close()
-        logs.Info("body:%s", string(body))
+	logs.Info("body:%s", string(body))
 	var devThreshReq = &DevThresh{}
 	err = json.Unmarshal(body, devThreshReq)
 	if err != nil {
@@ -85,52 +85,60 @@ func PutDeviceThresh(w http.ResponseWriter, req *http.Request, ps map[string]str
 	}
 	if devt == nil {
 		if devThreshReq.TemperatureMin != nil {
+			logs.Info("TemperatureMin:%d", *devThreshReq.TemperatureMin)
 			dt.TemperatureMin = *devThreshReq.TemperatureMin
 		} else {
 			dt.TemperatureMin = common.MinTemp
 		}
 		if devThreshReq.TemperatureMax != nil {
+			logs.Info("TemperatureMax:%d", *devThreshReq.TemperatureMax)
 			dt.TemperatureMax = *devThreshReq.TemperatureMax
 		} else {
 			dt.TemperatureMax = common.MaxTemp
 		}
 		// humidity
 		if devThreshReq.HumidityMin != nil {
+			logs.Info("HumidityMin:%d", *devThreshReq.HumidityMin)
 			dt.HumidityMin = *devThreshReq.HumidityMin
 		} else {
 			dt.HumidityMin = common.MinHumi
 		}
 		if devThreshReq.HumidityMax != nil {
+			logs.Info("HumidityMax:%d", *devThreshReq.HumidityMax)
 			dt.HumidityMax = *devThreshReq.HumidityMax
 		} else {
 			dt.HumidityMax = common.MaxHumi
 		}
-                logs.Info("save to (%v)", dt)
+		logs.Info("save to (%v)", dt)
 		err = bluedb.SaveDevThresh(dt)
 	} else {
 		dt.Id = devt.Id
 		if devThreshReq.TemperatureMin != nil {
+			logs.Info("TemperatureMin:%d", *devThreshReq.TemperatureMin)
 			dt.TemperatureMin = *devThreshReq.TemperatureMin
 		} else {
 			dt.TemperatureMin = devt.TemperatureMin
 		}
 		if devThreshReq.TemperatureMax != nil {
+			logs.Info("TemperatureMax:%d", *devThreshReq.TemperatureMax)
 			dt.TemperatureMax = *devThreshReq.TemperatureMax
 		} else {
 			dt.TemperatureMax = devt.TemperatureMax
 		}
 		// humidity
 		if devThreshReq.HumidityMin != nil {
+			logs.Info("HumidityMin:%d", *devThreshReq.HumidityMin)
 			dt.HumidityMin = *devThreshReq.HumidityMin
 		} else {
 			dt.HumidityMin = devt.HumidityMin
 		}
 		if devThreshReq.HumidityMax != nil {
+			logs.Info("HumidityMax:%d", *devThreshReq.HumidityMax)
 			dt.HumidityMax = *devThreshReq.HumidityMax
 		} else {
 			dt.HumidityMax = devt.HumidityMax
 		}
-                logs.Info("update to (%v)", dt)
+		logs.Info("update to (%v)", dt)
 		err = bluedb.UpdateDevThresh(dt)
 	}
 	if err != nil {
