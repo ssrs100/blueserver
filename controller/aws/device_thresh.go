@@ -64,8 +64,8 @@ func PutDeviceThresh(w http.ResponseWriter, req *http.Request, ps map[string]str
 	}
 	defer req.Body.Close()
 	logs.Info("body:%s", string(body))
-	var devThreshReq = &DevThresh{}
-	err = json.Unmarshal(body, devThreshReq)
+	var devThreshReq DevThresh
+	err = json.Unmarshal(body, &devThreshReq)
 	if err != nil {
 		logs.Error("Invalid body. err:%s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
