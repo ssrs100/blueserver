@@ -26,16 +26,22 @@ var (
 )
 
 type RegisterThingReq struct {
-	Name string `json:"name"`
+	Name        string `json:"name"`
+	WifiAddr    string `json:"wifi_addr"`
+	EtherAddr   string `json:"ether_addr"`
+	Description string `json:"description"`
 }
 
 type Thing struct {
-	Id        string     `json:"id"`
-	Name      string     `json:"name"`
-	AwsName   string     `json:"aws_name"`
-	AwsArn    string     `json:"aws_arn"`
-	ProjectId string     `json:"project_id"`
-	CreateAt  *time.Time `json:"create_at"`
+	Id          string     `json:"id"`
+	Name        string     `json:"name"`
+	AwsName     string     `json:"aws_name"`
+	AwsArn      string     `json:"aws_arn"`
+	ProjectId   string     `json:"project_id"`
+	WifiAddr    string     `json:"wifi_addr"`
+	EtherAddr   string     `json:"ether_addr"`
+	Description string     `json:"description"`
+	CreateAt    *time.Time `json:"create_at"`
 }
 
 type ThingsWrap struct {
@@ -110,6 +116,9 @@ func RegisterThing(w http.ResponseWriter, req *http.Request, ps map[string]strin
 
 	attr := make(map[string]*string)
 	attr["owner"] = &u.Name
+	attr["wifi_addr"] = &register.WifiAddr
+	attr["ether_addr"] = &register.EtherAddr
+	attr["description"] = &register.Description
 	attrThing := iot.AttributePayload{
 		Attributes: attr,
 	}
@@ -141,10 +150,13 @@ func RegisterThing(w http.ResponseWriter, req *http.Request, ps map[string]strin
 	}
 
 	t := bluedb.Thing{
-		Name:      register.Name,
-		AwsName:   awsThingName,
-		AwsArn:    *thingOut.ThingArn,
-		ProjectId: projectId,
+		Name:        register.Name,
+		AwsName:     awsThingName,
+		AwsArn:      *thingOut.ThingArn,
+		ProjectId:   projectId,
+		WifiAddr:    register.WifiAddr,
+		EtherAddr:   register.EtherAddr,
+		Description: register.Description,
 	}
 	if err := bluedb.SaveThing(t); err != nil {
 		logs.Error("save thing err:%s", err.Error())
@@ -443,12 +455,15 @@ func ListThingsV2(w http.ResponseWriter, req *http.Request, ps map[string]string
 	ret := make([]*Thing, 0)
 	for _, t := range things {
 		o := Thing{
-			Id:        t.Id,
-			Name:      t.Name,
-			AwsName:   t.AwsName,
-			AwsArn:    t.AwsArn,
-			ProjectId: t.ProjectId,
-			CreateAt:  t.CreateAt,
+			Id:          t.Id,
+			Name:        t.Name,
+			AwsName:     t.AwsName,
+			AwsArn:      t.AwsArn,
+			ProjectId:   t.ProjectId,
+			WifiAddr:    t.WifiAddr,
+			EtherAddr:   t.EtherAddr,
+			Description: t.Description,
+			CreateAt:    t.CreateAt,
 		}
 		ret = append(ret, &o)
 	}

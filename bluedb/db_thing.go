@@ -13,12 +13,15 @@ const (
 )
 
 type Thing struct {
-	Id        string     `orm:"size(64);pk"`
-	Name      string     `orm:"size(128)"`
-	AwsName   string     `orm:"size(128)"`
-	AwsArn    string     `orm:"size(128)"`
-	ProjectId string     `orm:"size(64)"`
-	CreateAt  *time.Time `orm:"auto_now_add;type(datetime)"`
+	Id          string     `orm:"size(64);pk"`
+	Name        string     `orm:"size(128)"`
+	AwsName     string     `orm:"size(128)"`
+	AwsArn      string     `orm:"size(128)"`
+	ProjectId   string     `orm:"size(64)"`
+	WifiAddr    string     `orm:"size(128)"`
+	EtherAddr   string     `orm:"size(128)"`
+	Description string     `orm:"size(128)"`
+	CreateAt    *time.Time `orm:"auto_now_add;type(datetime)"`
 }
 
 func init() {
