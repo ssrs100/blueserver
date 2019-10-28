@@ -32,6 +32,11 @@ type RegisterThingReq struct {
 	Description string `json:"description"`
 }
 
+
+type UpdateThingReq struct {
+	Description string `json:"description"`
+}
+
 type Thing struct {
 	Id          string     `json:"id"`
 	Name        string     `json:"name"`
@@ -52,23 +57,32 @@ func awsTingName(name, projectId string) string {
 	return name + ":" + projectId
 }
 
-func RegisterThing(w http.ResponseWriter, req *http.Request, ps map[string]string) {
-	projectId := ps["projectId"]
+
+func checkProject(projectId string) (*bluedb.User, error) {
 	u, err := bluedb.QueryUserById(projectId)
 	if err != nil {
-		logs.Error("Invalid body. err:%s", err.Error())
-		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte("project id not found"))
-		return
+		logs.Error("err:%s", err.Error())
+		return nil, errors.New("project id not found")
 	}
 	if len(u.AccessKey) == 0 || len(u.SecretKey) == 0 {
 		logs.Info("%s ak/sk is empty, ready to create", u.Name)
 		u, err = bindAwsUser(u)
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			_, _ = w.Write([]byte(err.Error()))
-			return
+			logs.Error("err:%s", err.Error())
+			return nil, errors.New("bind aws user fail")
 		}
+	}
+	return &u, nil
+}
+
+func RegisterThing(w http.ResponseWriter, req *http.Request, ps map[string]string) {
+	projectId := ps["projectId"]
+	u, err := checkProject(projectId)
+	if err != nil {
+		logs.Error("checkProject err:%s", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(err.Error()))
+		return
 	}
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
@@ -252,6 +266,83 @@ func bindAwsUser(user bluedb.User) (bluedb.User, error) {
 		return user, err
 	}
 	return user, nil
+}
+
+func UpdateThing(w http.ResponseWriter, req *http.Request, ps map[string]string) {
+	projectId := ps["projectId"]
+	thingName := ps["thingName"]
+	u, err := checkProject(projectId)
+	if err != nil {
+		logs.Error("checkProject err:%s", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(err.Error()))
+		return
+	}
+	body, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		logs.Error("Receive body failed: %v", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(err.Error()))
+		return
+	}
+	defer req.Body.Close()
+
+	var update = UpdateThingReq{}
+	if err = json.Unmarshal(body, &update); err != nil {
+		logs.Error("Invalid body. err:%s", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(err.Error()))
+		return
+	}
+
+	existThing := bluedb.GetThing(projectId, thingName)
+	if existThing == nil {
+		errStr := fmt.Sprintf("%s not exist.", thingName)
+		logs.Error("%s not exist.", thingName)
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(errStr))
+		return
+	}
+
+	// update thing
+	logs.Info("update thing..")
+	sess := session.Must(session.NewSession())
+	creds := credentials.NewStaticCredentials(
+		u.AccessKey,
+		u.SecretKey,
+		"",
+	)
+
+	svc := iot.New(sess, &aws.Config{Credentials: creds, Region: aws.String(region)})
+
+	attr := make(map[string]*string)
+	attr["description"] = &update.Description
+	attrThing := iot.AttributePayload{
+		Attributes: attr,
+	}
+
+	awsThingName := existThing.AwsName
+	awsReq := iot.UpdateThingInput{
+		ThingName:        &awsThingName,
+		AttributePayload: &attrThing,
+	}
+	_, err = svc.UpdateThing(&awsReq)
+	if err != nil {
+		logs.Error("update thing err:%s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(err.Error()))
+		return
+	}
+
+	existThing.Description = update.Description
+	if err := bluedb.UpdateThing(*existThing); err != nil {
+		logs.Error("update db thing err:%s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(err.Error()))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func RemoveThing(w http.ResponseWriter, req *http.Request, ps map[string]string) {

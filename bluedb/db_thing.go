@@ -46,6 +46,17 @@ func SaveThing(t Thing) error {
 	return nil
 }
 
+func UpdateThing(t Thing) error {
+	o := orm.NewOrm()
+	_, err := o.Update(&t, "description")
+	if err != nil {
+		logs.Error("update thing fail.thing: %v", t)
+		return err
+	}
+	logs.Info("update thing id: %v", t.Id)
+	return nil
+}
+
 func DeleteThing(id string) error {
 	o := orm.NewOrm()
 	b := Thing{Id: id}

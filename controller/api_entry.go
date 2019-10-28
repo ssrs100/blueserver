@@ -76,6 +76,7 @@ func LoadApi() *httptreemux.TreeMux {
 	router.GET("/aws/v1/:projectId/things", s.Wrap(aws.ListThings))
 	router.POST("/aws/v1/:projectId/things", s.Wrap(aws.RegisterThing))
 	router.DELETE("/aws/v1/:projectId/things/:thingName", s.Wrap(aws.RemoveThing))
+	router.PUT("/aws/v1/:projectId/things/:thingName", s.Wrap(aws.UpdateThing))
 	router.GET("/aws/v2/:projectId/things", s.Wrap(aws.ListThingsV2))
 	router.GET("/aws/v1/:projectId/things/:thingName/latest", s.Wrap(aws.GetThingLatestData))
 	router.GET("/aws/v1/:projectId/things/:thingName/range-data", s.Wrap(aws.GetThingData))
