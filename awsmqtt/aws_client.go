@@ -146,7 +146,7 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 			} else {
 				var rd influxdb.ReportData
 				if err := json.Unmarshal(s.Msg, &rd); err != nil {
-					logs.Error("err:%s", err.Error())
+					logs.Error("err:%s, msg:%s", err.Error(), string(s.Msg))
 					continue
 				}
 				var dbThing *bluedb.Thing
