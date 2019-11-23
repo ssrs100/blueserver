@@ -10,12 +10,12 @@ import (
 )
 
 type DevThresh struct {
-	ProjectId      string `json:"project_id"`
-	Device         string `json:"device"`
-	TemperatureMin *int   `json:"temperature_min"`
-	TemperatureMax *int   `json:"temperature_max"`
-	HumidityMin    *int   `json:"humidity_min"`
-	HumidityMax    *int   `json:"humidity_max"`
+	ProjectId      string   `json:"project_id"`
+	Device         string   `json:"device"`
+	TemperatureMin *float32 `json:"temperature_min"`
+	TemperatureMax *float32 `json:"temperature_max"`
+	HumidityMin    *float32 `json:"humidity_min"`
+	HumidityMax    *float32 `json:"humidity_max"`
 }
 
 func GetDeviceThresh(w http.ResponseWriter, req *http.Request, ps map[string]string) {
@@ -109,6 +109,10 @@ func PutDeviceThresh(w http.ResponseWriter, req *http.Request, ps map[string]str
 			dt.HumidityMax = *devThreshReq.HumidityMax
 		} else {
 			dt.HumidityMax = common.MaxHumi
+		}
+
+		if dt.TemperatureMin > dt.TemperatureMax {
+
 		}
 		logs.Info("save to (%v)", dt)
 		err = bluedb.SaveDevThresh(dt)

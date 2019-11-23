@@ -37,10 +37,10 @@ type AwsIotClient struct {
 }
 
 type thresh struct {
-	minTemp int
-	maxTemp int
-	minHum  int
-	maxHum  int
+	minTemp float32
+	maxTemp float32
+	minHum  float32
+	maxHum  float32
 }
 
 const (
@@ -128,15 +128,15 @@ func InitAwsClient() {
 }
 
 func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) {
-	tempMinThresh := conf.GetIntWithDefault("temperature_min_thresh", common.MinTemp)
-	tempMaxThresh := conf.GetIntWithDefault("temperature_max_thresh", common.MaxTemp)
-	humiMinThresh := conf.GetIntWithDefault("humi_min_thresh", common.MinHumi)
-	humiMaxThresh := conf.GetIntWithDefault("humi_max_thresh", common.MaxHumi)
+	tempMinThresh := conf.GetFloatWithDefault("temperature_min_thresh", common.MinTemp)
+	tempMaxThresh := conf.GetFloatWithDefault("temperature_max_thresh", common.MaxTemp)
+	humiMinThresh := conf.GetFloatWithDefault("humi_min_thresh", common.MinHumi)
+	humiMaxThresh := conf.GetFloatWithDefault("humi_max_thresh", common.MaxHumi)
 	defaultThresh := thresh{
-		minTemp: tempMinThresh,
-		maxTemp: tempMaxThresh,
-		minHum:  humiMinThresh,
-		maxHum:  humiMaxThresh,
+		minTemp: float32(tempMinThresh),
+		maxTemp: float32(tempMaxThresh),
+		minHum:  float32(humiMinThresh),
+		maxHum:  float32(humiMaxThresh),
 	}
 	for {
 		select {
@@ -161,27 +161,29 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 					logs.Error("%s", err.Error())
 					continue
 				}
-				var tmp int
+				var tmp float32
 				tmpFloat, err := strconv.ParseFloat(string(rd.Temperature), 64)
 				if err != nil {
-					tmp, err = strconv.Atoi(string(rd.Temperature))
+					tmpInt, err := strconv.Atoi(string(rd.Temperature))
 					if err != nil {
 						logs.Error("temper err:%v", rd.Temperature)
 					}
+					tmp = float32(tmpInt)
 				} else {
-					tmp = int(tmpFloat)
+					tmp = float32(tmpFloat)
 				}
 
 				// humidity
-				var hum int
+				var hum float32
 				humFloat, err := strconv.ParseFloat(string(rd.Humidity), 64)
 				if err != nil {
-					hum, err = strconv.Atoi(string(rd.Humidity))
+					humInt, err := strconv.Atoi(string(rd.Humidity))
 					if err != nil {
 						logs.Error("humidity err:%v", rd.Humidity)
 					}
+					hum = float32(humInt)
 				} else {
-					hum = int(humFloat)
+					hum = float32(humFloat)
 				}
 
 				threshDevice := getThresh(&rd, &defaultThresh)
