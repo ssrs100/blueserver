@@ -155,13 +155,13 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 					thing := thingSegs[0]
 					projectId := thingSegs[1]
 					if dbThing = bluedb.GetThing(projectId, thing); dbThing == nil {
-						logs.Info("project(%s) thing(%s) not register.", rd.ProjectId, rd.Thing)
+						logs.Info("project(%s) thing(%s) not register.", projectId, thing)
 						continue
 					}
 				} else {
 					thing := s.Thing
 					if dbThing = bluedb.GetThingByName(thing); dbThing == nil {
-						logs.Info("project(%s) thing(%s) not register.", rd.ProjectId, rd.Thing)
+						logs.Info("thing(%s) not register.", thing)
 						continue
 					}
 				}
