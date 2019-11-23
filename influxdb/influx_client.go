@@ -101,19 +101,22 @@ func InitFlux() {
 
 func Insert(table string, data *ReportData) error {
 	fields := make(map[string]interface{})
-	fields[columnDevice] = data.Device
 	fields[columnTemperature] = string(data.Temperature)
 	fields[columnHumidity] = string(data.Humidity)
 	fields[columnRssi] = string(data.Rssi)
-	fields[columnThing] = data.Thing
-	fields[columnProjectId] = data.ProjectId
 	fields[columnDeviceName] = data.DeviceName
 	fields[columnPower] = data.Power
 	rdTime := time.Unix(0, data.Timestamp*1000000)
 
+	tags := make(map[string]string)
+	tags[columnProjectId] = data.ProjectId
+	tags[columnThing] = data.Thing
+	tags[columnDevice] = data.Device
+
 	pts := make([]client.Point, 0)
 	p := client.Point{
 		Measurement: table,
+		Tags:        tags,
 		Fields:      fields,
 		Time:        rdTime,
 		//Precision:   "n",
