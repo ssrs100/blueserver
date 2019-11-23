@@ -53,7 +53,7 @@ type ThingsWrap struct {
 }
 
 func awsTingName(name, projectId string) string {
-	return name + ":" + projectId
+	return name
 }
 
 func checkProject(projectId string) (*bluedb.User, error) {
@@ -106,10 +106,10 @@ func RegisterThing(w http.ResponseWriter, req *http.Request, ps map[string]strin
 		_, _ = w.Write([]byte(errStr))
 		return
 	}
-	existThing := bluedb.GetThing(projectId, register.Name)
+	existThing := bluedb.GetThingByName(register.Name)
 	if existThing != nil {
-		errStr := fmt.Sprintf("%s exist.", register.Name)
-		logs.Error("%s exist.", register.Name)
+		errStr := fmt.Sprintf("thing(%s) has been used.", register.Name)
+		logs.Error("%s has been used.", register.Name)
 		w.WriteHeader(http.StatusBadRequest)
 		_, _ = w.Write([]byte(errStr))
 		return

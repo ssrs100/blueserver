@@ -149,18 +149,25 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 					logs.Error("err:%s", err.Error())
 					continue
 				}
+				var dbThing *bluedb.Thing
 				thingSegs := strings.Split(s.Thing, ":")
 				if len(thingSegs) > 1 {
-					rd.Thing = thingSegs[0]
-					rd.ProjectId = thingSegs[1]
+					thing := thingSegs[0]
+					projectId := thingSegs[1]
+					if dbThing = bluedb.GetThing(projectId, thing); dbThing == nil {
+						logs.Info("project(%s) thing(%s) not register.", rd.ProjectId, rd.Thing)
+						continue
+					}
 				} else {
-					rd.Thing = s.Thing
-					rd.ProjectId = projectId
+					thing := s.Thing
+					if dbThing = bluedb.GetThingByName(thing); dbThing == nil {
+						logs.Info("project(%s) thing(%s) not register.", rd.ProjectId, rd.Thing)
+						continue
+					}
 				}
-				if t := bluedb.GetThing(rd.ProjectId, rd.Thing); t == nil {
-					logs.Info("project(%s) thing(%s) not register", rd.ProjectId, rd.Thing)
-					continue
-				}
+				rd.Thing = dbThing.Name
+				rd.Thing = dbThing.ProjectId
+
 				if err := influxdb.Insert("temperature", &rd); err != nil {
 					logs.Error("%s", err.Error())
 					continue

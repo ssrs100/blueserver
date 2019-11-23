@@ -82,6 +82,27 @@ func GetThing(projectId, name string) *Thing {
 	return &thing
 }
 
+func GetThingByName(name string) *Thing {
+	o := orm.NewOrm()
+	qs := o.QueryTable(thingTable)
+	qs = qs.Filter("name", name)
+
+	var things []Thing
+	_, err := qs.All(&things)
+	if err != nil {
+		logs.Info("query things fail, err:%s", err.Error())
+		return nil
+	}
+	if len(things) == 0 {
+		return nil
+	}
+	//if len(things) > 1 {
+	//	logs.Error("query things (%s) bigger than 2", name)
+	//	return nil
+	//}
+	return &things[0]
+}
+
 func QueryThings(params map[string]interface{}) []*Thing {
 	var things []*Thing
 	o := orm.NewOrm()
