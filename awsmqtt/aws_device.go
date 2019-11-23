@@ -59,7 +59,7 @@ func NewClient(keyPair KeyPair, awsEndpoint string, clientId string) (*Client, e
 
 	mqttOpts := mqtt.NewClientOptions()
 	mqttOpts.AddBroker(awsServerURL)
-	mqttOpts.SetMaxReconnectInterval(1 * time.Second)
+	mqttOpts.SetMaxReconnectInterval(3 * time.Second)
 	mqttOpts.SetClientID(clientId)
 	mqttOpts.SetTLSConfig(tlsConfig)
 
