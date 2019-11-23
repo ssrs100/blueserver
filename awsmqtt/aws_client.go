@@ -157,6 +157,10 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 					rd.Thing = s.Thing
 					rd.ProjectId = projectId
 				}
+				if t := bluedb.GetThing(rd.ProjectId, rd.Thing); t == nil {
+					logs.Info("project(%s) thing(%s) not register", rd.ProjectId, rd.Thing)
+					continue
+				}
 				if err := influxdb.Insert("temperature", &rd); err != nil {
 					logs.Error("%s", err.Error())
 					continue

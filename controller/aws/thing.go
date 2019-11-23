@@ -32,7 +32,6 @@ type RegisterThingReq struct {
 	Description string `json:"description"`
 }
 
-
 type UpdateThingReq struct {
 	Description string `json:"description"`
 }
@@ -56,7 +55,6 @@ type ThingsWrap struct {
 func awsTingName(name, projectId string) string {
 	return name + ":" + projectId
 }
-
 
 func checkProject(projectId string) (*bluedb.User, error) {
 	u, err := bluedb.QueryUserById(projectId)
@@ -389,7 +387,7 @@ func RemoveThing(w http.ResponseWriter, req *http.Request, ps map[string]string)
 		Principal: &certUrn,
 	}
 	_, err = svc.DetachThingPrincipal(&detachReq)
-	if err != nil && !isNotFound(err){
+	if err != nil && !isNotFound(err) {
 		logs.Error("detach principal err:%s", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte(err.Error()))
@@ -400,7 +398,7 @@ func RemoveThing(w http.ResponseWriter, req *http.Request, ps map[string]string)
 		ThingName: &awsThingName,
 	}
 	_, err = svc.DeleteThing(&awsReq)
-	if err != nil && !isNotFound(err){
+	if err != nil && !isNotFound(err) {
 		logs.Error("remove thing err:%s", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte(err.Error()))
@@ -412,6 +410,9 @@ func RemoveThing(w http.ResponseWriter, req *http.Request, ps map[string]string)
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte(err.Error()))
 		return
+	}
+	if err := influxdb.DeleteData("temperature", thingName, projectId); err != nil {
+		logs.Error(err.Error())
 	}
 
 	w.WriteHeader(http.StatusOK)

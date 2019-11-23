@@ -236,16 +236,6 @@ func getOneData(data []interface{}) *OutData {
 	return &ret
 }
 
-func getOneDevice(data []interface{}) string {
-	logs.Debug("%v", data)
-	if len(data) < 2 {
-		logs.Warn("columns less 2")
-		return ""
-	}
-	device, _ := data[1].(string)
-	return device
-}
-
 func GetDataByTime(table string, thing, startAt, endAt, device, projectId string) (datas []*OutData, err error) {
 	// startAt, endAt like '2019-08-17T06:40:27.995Z'
 	cmd := fmt.Sprintf("select %s from %s where time >= '%s' and time < '%s' and project_id='%s'", columnStr, table, startAt, endAt, projectId)
@@ -313,4 +303,23 @@ func GetDevicesByThing(table string, thing, projectId string) (devices []string,
 	}
 
 	return retList, nil
+}
+
+func DeleteData(table string, thing, projectId string) error {
+	//cmd := fmt.Sprintf("select distinct(device) from %s where project_id='%s'", table, projectId)
+	cmd := fmt.Sprintf("delete from %s where project_id='%s'", table, projectId)
+	if len(thing) > 0 {
+		cmd = cmd + fmt.Sprintf(" and thing='%s'", thing)
+	}
+	var q client.Query
+	q = client.Query{
+		Command:  cmd,
+		Database: dbName,
+	}
+	logs.Debug("%s", q.Command)
+	_, err := influx.c.Query(q)
+	if err != nil {
+		return err
+	}
+	return nil
 }
