@@ -304,12 +304,9 @@ func GetDevicesByThing(table string, thing, projectId string) (devices []string,
 			continue
 		}
 		for _, s := range v.Series {
-			for _, data := range s.Values {
-				d := getOneDevice(data)
-				retList = append(retList, d)
-			}
 			for _, data := range s.Tags {
 				logs.Debug("%v", data)
+				retList = append(retList, data)
 			}
 		}
 
