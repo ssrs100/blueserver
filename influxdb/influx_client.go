@@ -282,7 +282,8 @@ func GetDataByTime(table string, thing, startAt, endAt, device, projectId string
 }
 
 func GetDevicesByThing(table string, thing, projectId string) (devices []string, err error) {
-	cmd := fmt.Sprintf("select distinct(device) from %s where project_id='%s'", table, projectId)
+	//cmd := fmt.Sprintf("select distinct(device) from %s where project_id='%s'", table, projectId)
+	cmd := fmt.Sprintf("select * from %s where project_id='%s' group by device", table, projectId)
 	if len(thing) > 0 {
 		cmd = cmd + fmt.Sprintf(" and thing='%s'", thing)
 	}
