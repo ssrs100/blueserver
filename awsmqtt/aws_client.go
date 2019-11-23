@@ -97,7 +97,7 @@ func InitAwsClient() {
 			logs.Error("load user(%s) conf.json fail", u)
 			continue
 		}
-		iotEndpoint := conf.GetString("iot_endpoint")
+		iotEndpoint := c.GetString("iot_endpoint")
 		client, err := NewClient(
 			KeyPair{
 				PrivateKeyPath:    filepath.Join(certDir, u, "private.pem.key"),
