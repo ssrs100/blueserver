@@ -54,6 +54,7 @@ var cleanTemplate = "[clean]device(%s) thing(%s) %s is %v, it restores back to t
 
 var (
 	deviceSnsCache *cache.Cache
+	cleanCache *cache.Cache
 	useClientCache map[string]*AwsIotClient
 )
 
@@ -61,6 +62,7 @@ var stopChan chan interface{}
 
 func init() {
 	deviceSnsCache = cache.New(24*time.Hour, 30*time.Minute)
+	cleanCache = cache.New(time.Minute, 2 * time.Minute)
 	useClientCache = make(map[string]*AwsIotClient)
 }
 
@@ -163,6 +165,11 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 					thing := s.Thing
 					if dbThing = bluedb.GetThingByName(thing); dbThing == nil {
 						logs.Info("thing(%s) not register, ignore", thing)
+						if _, ok := cleanCache.Get(thing); !ok {
+							go ac.stopThing(thing)
+						} else {
+							logs.Info("already send stop, wait cache timeout")
+						}
 						continue
 					}
 				}
@@ -360,4 +367,23 @@ func (ac *AwsIotClient) sendCleanMsg(key string, data *influxdb.ReportData) {
 	logs.Info("send(%s) clean to sns success", data.Device)
 	deviceSnsCache.Delete(data.Device + key)
 	bluedb.DeleteNotice(data.Device, key)
+}
+
+
+func (ac *AwsIotClient) stopThing(thing string) {
+	defer func() {
+		if r := recover(); r != nil {
+			logs.Error("panic err:%v", r)
+			var buf [4096]byte
+			n := runtime.Stack(buf[:], true)
+			logs.Error("==> %s\n", string(buf[:n]))
+		}
+	}()
+	logs.Info("stop thing:%s", thing)
+	stopTopic := fmt.Sprintf("$aws/things/%s/reports/stop", thing)
+	res := ac.awsClient.client.Publish(stopTopic, 0, false, []byte("stop report"))
+	if res.WaitTimeout(time.Second*2) && res.Error() != nil {
+		logs.Error("stop fail, err:%s", res.Error().Error())
+	}
+	cleanCache.Set(thing, "", cache.DefaultExpiration)
 }
