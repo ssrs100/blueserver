@@ -145,6 +145,7 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 				logs.Debug("failed to read from shadow channel")
 			} else {
 				var rd influxdb.ReportData
+				logs.Debug("rcv thing:%s", s.Thing)
 				if err := json.Unmarshal(s.Msg, &rd); err != nil {
 					logs.Error("err:%s, msg:%s", err.Error(), string(s.Msg))
 					continue
