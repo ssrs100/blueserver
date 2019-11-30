@@ -70,11 +70,12 @@ func GetUserNotify(w http.ResponseWriter, req *http.Request, ps map[string]strin
 				_, _ = w.Write([]byte(err.Error()))
 				return
 			}
+		} else {
+			logs.Error("get topic err:%s", err.Error())
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(err.Error()))
+			return
 		}
-		logs.Error("get topic err:%s", err.Error())
-		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte(err.Error()))
-		return
 	}
 	// get subscribe
 	listSub := sns.ListSubscriptionsByTopicInput{
