@@ -269,13 +269,13 @@ func bindAwsUser(user bluedb.User) (bluedb.User, error) {
 func UpdateThing(w http.ResponseWriter, req *http.Request, ps map[string]string) {
 	projectId := ps["projectId"]
 	thingName := ps["thingName"]
-	u, err := checkProject(projectId)
-	if err != nil {
-		logs.Error("checkProject err:%s", err.Error())
-		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte(err.Error()))
-		return
-	}
+	//u, err := checkProject(projectId)
+	//if err != nil {
+	//	logs.Error("checkProject err:%s", err.Error())
+	//	w.WriteHeader(http.StatusBadRequest)
+	//	_, _ = w.Write([]byte(err.Error()))
+	//	return
+	//}
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		logs.Error("Receive body failed: %v", err.Error())
