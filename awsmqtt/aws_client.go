@@ -17,6 +17,7 @@ import (
 	"github.com/ssrs100/blueserver/bluedb"
 	"github.com/ssrs100/blueserver/common"
 	"github.com/ssrs100/blueserver/influxdb"
+	"github.com/ssrs100/blueserver/sesscache"
 	"io/ioutil"
 	"path/filepath"
 	"runtime"
@@ -84,6 +85,11 @@ func InitAwsClient() {
 	baseDir := utils.GetBasePath()
 	certDir := filepath.Join(baseDir, "conf", "cert")
 	users := listAllDir(certDir)
+
+
+	ts := thingStatus{}
+	ts.Init(stopChan)
+
 	for _, u := range users {
 		user, err := bluedb.QueryUserByName(u)
 		if err != nil {
@@ -161,6 +167,11 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 						logs.Info("project(%s) thing(%s) not register, ignore", projectId, thing)
 						continue
 					}
+					sesscache.SetWithExpired(common.StatusKey(thing), OnLine, 5 * time.Minute)
+					if strconv.Itoa(dbThing.Status) != OnLine {
+						dbThing.Status = 1
+						bluedb.UpdateThingStatus(*dbThing)
+					}
 				} else {
 					thing := s.Thing
 					if dbThing = bluedb.GetThingByName(thing); dbThing == nil {
@@ -171,6 +182,11 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 							logs.Info("already send stop, wait cache timeout")
 						}
 						continue
+					}
+					sesscache.SetWithExpired(common.StatusKey(thing), OnLine, 5 * time.Minute)
+					if strconv.Itoa(dbThing.Status) != OnLine {
+						dbThing.Status = 1
+						bluedb.UpdateThingStatus(*dbThing)
 					}
 				}
 				rd.Thing = dbThing.Name

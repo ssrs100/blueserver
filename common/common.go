@@ -22,3 +22,8 @@ func GenToken(id, passwd string) string {
 	hash := sha512.New()
 	return string(hash.Sum([]byte(id + passwd)))
 }
+
+func StatusKey(thing string) string {
+	return "status_" + thing
+}
+
