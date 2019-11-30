@@ -90,6 +90,9 @@ func LoadApi() *httptreemux.TreeMux {
 	router.GET("/aws/v1/:projectId/devices/:device/thresh", s.Wrap(aws.GetDeviceThresh))
 	router.PUT("/aws/v1/:projectId/devices/:device/thresh", s.Wrap(aws.PutDeviceThresh))
 
+	router.GET("/aws/v1/:projectId/notify", s.Wrap(aws.GetUserNotify))
+	router.PUT("/aws/v1/:projectId/notify", s.Wrap(aws.AddUserNotify))
+	router.DELETE("/aws/v1/:projectId/notify", s.Wrap(aws.RmvUserNotify))
 	// cert
 	router.POST("/aws/v1/:projectId/certificate", s.Wrap(aws.UpdateThingCert))
 
