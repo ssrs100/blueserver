@@ -130,7 +130,7 @@ func RegisterThing(w http.ResponseWriter, req *http.Request, ps map[string]strin
 	attr["owner"] = &u.Name
 	attr["wifi_addr"] = &register.WifiAddr
 	attr["ether_addr"] = &register.EtherAddr
-	attr["description"] = &register.Description
+	//attr["description"] = &register.Description
 	attrThing := iot.AttributePayload{
 		Attributes: attr,
 	}
@@ -304,33 +304,33 @@ func UpdateThing(w http.ResponseWriter, req *http.Request, ps map[string]string)
 
 	// update thing
 	logs.Info("update thing..")
-	sess := session.Must(session.NewSession())
-	creds := credentials.NewStaticCredentials(
-		u.AccessKey,
-		u.SecretKey,
-		"",
-	)
-
-	svc := iot.New(sess, &aws.Config{Credentials: creds, Region: aws.String(region)})
-
-	attr := make(map[string]*string)
-	attr["description"] = &update.Description
-	attrThing := iot.AttributePayload{
-		Attributes: attr,
-	}
-
-	awsThingName := existThing.AwsName
-	awsReq := iot.UpdateThingInput{
-		ThingName:        &awsThingName,
-		AttributePayload: &attrThing,
-	}
-	_, err = svc.UpdateThing(&awsReq)
-	if err != nil {
-		logs.Error("update thing err:%s", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte(err.Error()))
-		return
-	}
+	//sess := session.Must(session.NewSession())
+	//creds := credentials.NewStaticCredentials(
+	//	u.AccessKey,
+	//	u.SecretKey,
+	//	"",
+	//)
+	//
+	//svc := iot.New(sess, &aws.Config{Credentials: creds, Region: aws.String(region)})
+	//
+	//attr := make(map[string]*string)
+	//attr["description"] = &update.Description
+	//attrThing := iot.AttributePayload{
+	//	Attributes: attr,
+	//}
+	//
+	//awsThingName := existThing.AwsName
+	//awsReq := iot.UpdateThingInput{
+	//	ThingName:        &awsThingName,
+	//	AttributePayload: &attrThing,
+	//}
+	//_, err = svc.UpdateThing(&awsReq)
+	//if err != nil {
+	//	logs.Error("update thing err:%s", err.Error())
+	//	w.WriteHeader(http.StatusInternalServerError)
+	//	_, _ = w.Write([]byte(err.Error()))
+	//	return
+	//}
 
 	existThing.Description = update.Description
 	if err := bluedb.UpdateThing(*existThing); err != nil {
