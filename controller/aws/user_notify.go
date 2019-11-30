@@ -24,7 +24,8 @@ type UserNotify struct {
 }
 
 func topicName(projectId string) string {
-	return strings.Replace(projectId, "-", "", -1)
+	//return strings.Replace(projectId, "-", "", -1)
+	return projectId
 }
 
 func createTopic(svc *sns.SNS, projectId string) error {
@@ -62,6 +63,7 @@ func GetUserNotify(w http.ResponseWriter, req *http.Request, ps map[string]strin
 
 	name := topicName(projectId)
 	tpc := fmt.Sprintf("arn:aws:sns:us-west-2:415890359503:%s", name)
+	logs.Debug(tpc)
 	svc := sns.New(sess, &aws.Config{Credentials: creds, Region: aws.String(region)})
 
 	// check topic
