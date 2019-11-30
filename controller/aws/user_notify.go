@@ -67,10 +67,10 @@ func GetUserNotify(w http.ResponseWriter, req *http.Request, ps map[string]strin
 	svc := sns.New(sess, &aws.Config{Credentials: creds, Region: aws.String(region)})
 
 	// check topic
-	input := sns.GetEndpointAttributesInput{
-		EndpointArn: &tpc,
+	input := sns.GetTopicAttributesInput{
+		TopicArn: &tpc,
 	}
-	_, err = svc.GetEndpointAttributes(&input)
+	_, err = svc.GetTopicAttributes(&input)
 	if err != nil {
 		if strings.Contains(err.Error(), sns.ErrCodeResourceNotFoundException) {
 			if err := createTopic(svc, projectId); err != nil {
