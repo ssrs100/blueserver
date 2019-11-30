@@ -403,3 +403,22 @@ func (ac *AwsIotClient) stopThing(thing string) {
 	}
 	cleanCache.Set(thing, "", cache.DefaultExpiration)
 }
+
+func (ac *AwsIotClient) startThing(thing string) error {
+	defer func() {
+		if r := recover(); r != nil {
+			logs.Error("panic err:%v", r)
+			var buf [4096]byte
+			n := runtime.Stack(buf[:], true)
+			logs.Error("==> %s\n", string(buf[:n]))
+		}
+	}()
+	logs.Info("start thing:%s", thing)
+	stopTopic := fmt.Sprintf("$aws/things/%s/reports/start", thing)
+	res := ac.awsClient.client.Publish(stopTopic, 0, false, []byte("start report"))
+	if res.WaitTimeout(time.Second*2) && res.Error() != nil {
+		logs.Error("stop fail, err:%s", res.Error().Error())
+		return res.Error()
+	}
+	return nil
+}
