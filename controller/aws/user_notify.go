@@ -72,7 +72,7 @@ func GetUserNotify(w http.ResponseWriter, req *http.Request, ps map[string]strin
 	}
 	_, err = svc.GetTopicAttributes(&input)
 	if err != nil {
-		if strings.Contains(err.Error(), sns.ErrCodeResourceNotFoundException) {
+		if strings.Contains(err.Error(), sns.ErrCodeNotFoundException) {
 			if err := createTopic(svc, projectId); err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				_, _ = w.Write([]byte(err.Error()))
