@@ -23,14 +23,19 @@ type UserNotify struct {
 	Mobiles []string `json:"mobiles"`
 }
 
+func topicName(projectId string) string {
+	return strings.Replace(projectId, "-", "", -1)
+}
+
 func createTopic(svc *sns.SNS, projectId string) error {
-	logs.Info("create topic project(%s)", projectId)
+	name := topicName(projectId)
+	logs.Info("create topic name(%s)", name)
 	displayName := "Temperature and humidity threshold notification"
 	attr := make(map[string]*string)
 	attr["DisplayName"] = &displayName
 	crtTpc := &sns.CreateTopicInput{
 		Attributes: attr,
-		Name:       &projectId,
+		Name:       &name,
 	}
 	if _, err := svc.CreateTopic(crtTpc); err != nil {
 		logs.Error("create topic err:%s", err.Error())
@@ -55,7 +60,8 @@ func GetUserNotify(w http.ResponseWriter, req *http.Request, ps map[string]strin
 		"",
 	)
 
-	tpc := fmt.Sprintf("arn:aws:sns:us-west-2:415890359503:%s", projectId)
+	name := topicName(projectId)
+	tpc := fmt.Sprintf("arn:aws:sns:us-west-2:415890359503:%s", name)
 	svc := sns.New(sess, &aws.Config{Credentials: creds, Region: aws.String(region)})
 
 	// check topic
@@ -124,7 +130,8 @@ func AddUserNotify(w http.ResponseWriter, req *http.Request, ps map[string]strin
 		"",
 	)
 
-	tpc := fmt.Sprintf("arn:aws:sns:us-west-2:415890359503:%s", projectId)
+	name := topicName(projectId)
+	tpc := fmt.Sprintf("arn:aws:sns:us-west-2:415890359503:%s", name)
 	svc := sns.New(sess, &aws.Config{Credentials: creds, Region: aws.String(region)})
 
 	body, err := ioutil.ReadAll(req.Body)
@@ -184,8 +191,8 @@ func RmvUserNotify(w http.ResponseWriter, req *http.Request, ps map[string]strin
 		u.SecretKey,
 		"",
 	)
-
-	tpc := fmt.Sprintf("arn:aws:sns:us-west-2:415890359503:%s", projectId)
+	name := topicName(projectId)
+	tpc := fmt.Sprintf("arn:aws:sns:us-west-2:415890359503:%s", name)
 	svc := sns.New(sess, &aws.Config{Credentials: creds, Region: aws.String(region)})
 
 	body, err := ioutil.ReadAll(req.Body)
