@@ -42,6 +42,7 @@ type Thing struct {
 	AwsName     string     `json:"aws_name"`
 	AwsArn      string     `json:"aws_arn"`
 	ProjectId   string     `json:"project_id"`
+	Status      int        `json:"status"`
 	WifiAddr    string     `json:"wifi_addr"`
 	EtherAddr   string     `json:"ether_addr"`
 	Description string     `json:"description"`
@@ -559,6 +560,7 @@ func ListThingsV2(w http.ResponseWriter, req *http.Request, ps map[string]string
 			AwsName:     t.AwsName,
 			AwsArn:      t.AwsArn,
 			ProjectId:   t.ProjectId,
+			Status:      t.Status,
 			WifiAddr:    t.WifiAddr,
 			EtherAddr:   t.EtherAddr,
 			Description: t.Description,

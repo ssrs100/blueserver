@@ -18,6 +18,7 @@ type Thing struct {
 	AwsName     string     `orm:"size(128)"`
 	AwsArn      string     `orm:"size(128)"`
 	ProjectId   string     `orm:"size(64)"`
+	Status      int        `orm:"default(0)"`
 	WifiAddr    string     `orm:"size(128)"`
 	EtherAddr   string     `orm:"size(128)"`
 	Description string     `orm:"size(128)"`
