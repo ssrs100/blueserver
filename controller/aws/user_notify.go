@@ -107,16 +107,18 @@ func GetUserNotify(w http.ResponseWriter, req *http.Request, ps map[string]strin
 	}
 	userNotifies := UserNotify{}
 	for _, sub := range subs.Subscriptions {
+		segs := strings.Split(*sub.SubscriptionArn, ":")
+		subscribeId := segs[len(segs)-1]
 		if *sub.Protocol == "sms" {
 			e := NotifyInfo{
 				Endpoint:    *sub.Endpoint,
-				SubscribeId: *sub.SubscriptionArn,
+				SubscribeId: subscribeId,
 			}
 			userNotifies.Mobiles = append(userNotifies.Mobiles, e)
 		} else if *sub.Protocol == "email" {
 			e := NotifyInfo{
 				Endpoint:    *sub.Endpoint,
-				SubscribeId: *sub.SubscriptionArn,
+				SubscribeId: subscribeId,
 			}
 			userNotifies.Emails = append(userNotifies.Emails, e)
 		}
@@ -215,8 +217,12 @@ func RmvUserNotify(w http.ResponseWriter, req *http.Request, ps map[string]strin
 	logs.Info("remove notify:%v", subscribeId)
 
 	// found and delete it
+	arn := ""
+	if strings.Contains(subscribeId, "-") {
+		arn = fmt.Sprintf("arn:aws:sns:us-west-2:415890359503:%s:%s", projectId, subscribeId)
+	}
 	subDel := sns.UnsubscribeInput{
-		SubscriptionArn: &subscribeId,
+		SubscriptionArn: &arn,
 	}
 	_, err = svc.Unsubscribe(&subDel)
 	if err != nil {
