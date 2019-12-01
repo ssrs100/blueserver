@@ -321,7 +321,7 @@ func (ac *AwsIotClient) sendNotifyMsg(key string, data *influxdb.ReportData, upp
 	msg := fmt.Sprintf(msgTemplate, data.Device, data.Thing, key, value)
 	params := &sns.PublishInput{
 		Message:  aws.String(msg),
-		TopicArn: aws.String("arn:aws:sns:us-west-2:415890359503:email"),
+		TopicArn: aws.String(fmt.Sprintf("arn:aws:sns:us-west-2:415890359503:%s", data.ProjectId)),
 	}
 	_, err := ac.snsClient.PublishWithContext(ctx, params)
 	if err != nil {
@@ -367,7 +367,7 @@ func (ac *AwsIotClient) sendCleanMsg(key string, data *influxdb.ReportData) {
 	msg := fmt.Sprintf(cleanTemplate, data.Device, data.Thing, key, value)
 	params := &sns.PublishInput{
 		Message:  aws.String(msg),
-		TopicArn: aws.String("arn:aws:sns:us-west-2:415890359503:email"),
+		TopicArn: aws.String(fmt.Sprintf("arn:aws:sns:us-west-2:415890359503:%s", data.ProjectId)),
 	}
 	_, err := ac.snsClient.PublishWithContext(ctx, params)
 	if err != nil {
