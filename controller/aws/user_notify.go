@@ -13,14 +13,23 @@ import (
 	"strings"
 )
 
+type UserNotifyRmvReq struct {
+	SubscribeId string `json:"subscribe_id"`
+}
+
 type UserNotifyReq struct {
 	Email  string `json:"email"`
 	Mobile string `json:"mobile"`
 }
 
+type NotifyInfo struct {
+	Endpoint    string `json:"endpoint"`
+	SubscribeId string `json:"subscribe_id"`
+}
+
 type UserNotify struct {
-	Emails  []string `json:"emails"`
-	Mobiles []string `json:"mobiles"`
+	Emails  []NotifyInfo `json:"emails"`
+	Mobiles []NotifyInfo `json:"mobiles"`
 }
 
 func topicName(projectId string) string {
@@ -99,9 +108,17 @@ func GetUserNotify(w http.ResponseWriter, req *http.Request, ps map[string]strin
 	userNotifies := UserNotify{}
 	for _, sub := range subs.Subscriptions {
 		if *sub.Protocol == "sms" {
-			userNotifies.Mobiles = append(userNotifies.Mobiles, *sub.Endpoint)
+			e := NotifyInfo{
+				Endpoint:    *sub.Endpoint,
+				SubscribeId: *sub.SubscriptionArn,
+			}
+			userNotifies.Mobiles = append(userNotifies.Mobiles, e)
 		} else if *sub.Protocol == "email" {
-			userNotifies.Emails = append(userNotifies.Emails, *sub.Endpoint)
+			e := NotifyInfo{
+				Endpoint:    *sub.Endpoint,
+				SubscribeId: *sub.SubscriptionArn,
+			}
+			userNotifies.Emails = append(userNotifies.Emails, e)
 		}
 	}
 	ret, err := json.Marshal(&userNotifies)
@@ -155,7 +172,7 @@ func AddUserNotify(w http.ResponseWriter, req *http.Request, ps map[string]strin
 	logs.Info("add notify:%v", addReq)
 	protocal := ""
 	endpoint := ""
-	if len(addReq.Email) > 0{
+	if len(addReq.Email) > 0 {
 		protocal = "email"
 		endpoint = addReq.Email
 	} else if len(addReq.Mobile) > 0 {
@@ -193,8 +210,6 @@ func RmvUserNotify(w http.ResponseWriter, req *http.Request, ps map[string]strin
 		u.SecretKey,
 		"",
 	)
-	name := topicName(projectId)
-	tpc := fmt.Sprintf("arn:aws:sns:us-west-2:415890359503:%s", name)
 	svc := sns.New(sess, &aws.Config{Credentials: creds, Region: aws.String(region)})
 
 	body, err := ioutil.ReadAll(req.Body)
@@ -205,7 +220,7 @@ func RmvUserNotify(w http.ResponseWriter, req *http.Request, ps map[string]strin
 		return
 	}
 	defer req.Body.Close()
-	var rmvReq UserNotifyReq
+	var rmvReq UserNotifyRmvReq
 	err = json.Unmarshal(body, &rmvReq)
 	if err != nil {
 		logs.Error("Invalid body. err:%s", err.Error())
@@ -214,41 +229,10 @@ func RmvUserNotify(w http.ResponseWriter, req *http.Request, ps map[string]strin
 		return
 	}
 	logs.Info("remove notify:%v", rmvReq)
-	protocal := ""
-	endpoint := ""
-	if len(rmvReq.Email) > 0{
-		protocal = "email"
-		endpoint = rmvReq.Email
-	} else if len(rmvReq.Mobile) > 0 {
-		protocal = "sms"
-		endpoint = rmvReq.Mobile
-	}
 
 	// found and delete it
-	listSub := sns.ListSubscriptionsByTopicInput{
-		TopicArn: &tpc,
-	}
-	subs, err := svc.ListSubscriptionsByTopic(&listSub)
-	if err != nil {
-		logs.Error("list subscription err:%s", err.Error())
-		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte(err.Error()))
-		return
-	}
-	var subTarget *sns.Subscription
-	for _, sub := range subs.Subscriptions {
-		if *sub.Protocol == protocal && *sub.Endpoint == endpoint {
-			subTarget = sub
-		}
-	}
-	if subTarget == nil {
-		logs.Error("not found %s", endpoint)
-		w.WriteHeader(http.StatusNotFound)
-		_, _ = w.Write([]byte(fmt.Sprintf("not found %s", endpoint)))
-		return
-	}
 	subDel := sns.UnsubscribeInput{
-		SubscriptionArn: subTarget.SubscriptionArn,
+		SubscriptionArn: &rmvReq.SubscribeId,
 	}
 	_, err = svc.Unsubscribe(&subDel)
 	if err != nil {
@@ -258,5 +242,5 @@ func RmvUserNotify(w http.ResponseWriter, req *http.Request, ps map[string]strin
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	logs.Info("remove subscribe(%s) success", endpoint)
+	logs.Info("remove subscribe(%s) success", rmvReq.SubscribeId)
 }
