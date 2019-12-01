@@ -206,7 +206,7 @@ func RmvUserNotify(w http.ResponseWriter, req *http.Request, ps map[string]strin
 		_, _ = w.Write([]byte(err.Error()))
 		return
 	}
-	subscribeId := ps["subscribe_id"]
+	subscribeId := ps["subscribeId"]
 	sess := session.Must(session.NewSession())
 	creds := credentials.NewStaticCredentials(
 		u.AccessKey,
