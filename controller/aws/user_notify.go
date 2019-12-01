@@ -204,6 +204,7 @@ func RmvUserNotify(w http.ResponseWriter, req *http.Request, ps map[string]strin
 		_, _ = w.Write([]byte(err.Error()))
 		return
 	}
+	subscribeId := ps["subscribe_id"]
 	sess := session.Must(session.NewSession())
 	creds := credentials.NewStaticCredentials(
 		u.AccessKey,
@@ -211,28 +212,11 @@ func RmvUserNotify(w http.ResponseWriter, req *http.Request, ps map[string]strin
 		"",
 	)
 	svc := sns.New(sess, &aws.Config{Credentials: creds, Region: aws.String(region)})
-
-	body, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		logs.Error("Receive body failed: %v", err.Error())
-		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte(err.Error()))
-		return
-	}
-	defer req.Body.Close()
-	var rmvReq UserNotifyRmvReq
-	err = json.Unmarshal(body, &rmvReq)
-	if err != nil {
-		logs.Error("Invalid body. err:%s", err.Error())
-		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte(err.Error()))
-		return
-	}
-	logs.Info("remove notify:%v", rmvReq)
+	logs.Info("remove notify:%v", subscribeId)
 
 	// found and delete it
 	subDel := sns.UnsubscribeInput{
-		SubscriptionArn: &rmvReq.SubscribeId,
+		SubscriptionArn: &subscribeId,
 	}
 	_, err = svc.Unsubscribe(&subDel)
 	if err != nil {
@@ -242,5 +226,5 @@ func RmvUserNotify(w http.ResponseWriter, req *http.Request, ps map[string]strin
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	logs.Info("remove subscribe(%s) success", rmvReq.SubscribeId)
+	logs.Info("remove subscribe(%s) success", subscribeId)
 }
