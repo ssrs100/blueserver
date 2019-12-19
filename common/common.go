@@ -27,3 +27,6 @@ func StatusKey(thing string) string {
 	return "status_" + thing
 }
 
+func NoticeKey(projectId, key string) string {
+	return "notice_" + projectId + "_" + key
+}

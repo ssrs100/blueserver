@@ -54,16 +54,14 @@ var msgTemplate = "[notice]device(%s) thing(%s) %s is %v, it's out of the range 
 var cleanTemplate = "[clean]device(%s) thing(%s) %s is %v, it restores back to the range of device settings."
 
 var (
-	deviceSnsCache *cache.Cache
-	cleanCache *cache.Cache
+	cleanCache     *cache.Cache
 	useClientCache map[string]*AwsIotClient
 )
 
 var stopChan chan interface{}
 
 func init() {
-	deviceSnsCache = cache.New(24*time.Hour, 30*time.Minute)
-	cleanCache = cache.New(time.Minute, 2 * time.Minute)
+	cleanCache = cache.New(time.Minute, 2*time.Minute)
 	useClientCache = make(map[string]*AwsIotClient)
 }
 
@@ -85,7 +83,6 @@ func InitAwsClient() {
 	baseDir := utils.GetBasePath()
 	certDir := filepath.Join(baseDir, "conf", "cert")
 	users := listAllDir(certDir)
-
 
 	ts := thingStatus{}
 	ts.Init(stopChan)
@@ -167,7 +164,7 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 						logs.Info("project(%s) thing(%s) not register, ignore", projectId, thing)
 						continue
 					}
-					sesscache.SetWithExpired(common.StatusKey(thing), OnLine, 5 * time.Minute)
+					sesscache.SetWithExpired(common.StatusKey(thing), OnLine, 5*time.Minute)
 					if strconv.Itoa(dbThing.Status) != OnLine {
 						dbThing.Status = 1
 						bluedb.UpdateThingStatus(*dbThing)
@@ -183,7 +180,7 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 						}
 						continue
 					}
-					sesscache.SetWithExpired(common.StatusKey(thing), OnLine, 5 * time.Minute)
+					sesscache.SetWithExpired(common.StatusKey(thing), OnLine, 5*time.Minute)
 					if strconv.Itoa(dbThing.Status) != OnLine {
 						dbThing.Status = 1
 						bluedb.UpdateThingStatus(*dbThing)
@@ -285,28 +282,25 @@ func (ac *AwsIotClient) sendSns(key string, data *influxdb.ReportData, upperLimi
 			logs.Error("==> %s\n", string(buf[:n]))
 		}
 	}()
+	cause := "upper"
+	if !upperLimit {
+		cause = "lower"
+	}
 	if isClean {
 		ac.sendCleanMsg(key, data)
 	} else {
-		ac.sendNotifyMsg(key, data, upperLimit)
+		ac.sendNotifyMsg(cause, key, data)
 	}
 }
 
-func (ac *AwsIotClient) sendNotifyMsg(key string, data *influxdb.ReportData, upperLimit bool) {
-	dbKey := key + "upper"
-	if !upperLimit {
-		dbKey = key + "lower"
-	}
-	logs.Debug("dbKey:%s", dbKey)
-	_, ok := deviceSnsCache.Get(data.Device + dbKey)
-	if ok {
+func (ac *AwsIotClient) sendNotifyMsg(cause, key string, data *influxdb.ReportData) {
+	logs.Debug("key:%s cause:%s", key, cause)
+	noticeKey := common.NoticeKey(data.ProjectId, data.Device+key+cause)
+	noticeVal := sesscache.Get(noticeKey)
+	if len(noticeVal) > 0 {
 		return
 	}
-	d, _ := bluedb.QueryNoticeByDevice(data.Device, dbKey)
-	if d != nil {
-		return
-	}
-	logs.Debug("send %s start", dbKey)
+	logs.Debug("send %s %s start", key, cause)
 	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelFn()
 	value := data.Temperature
@@ -317,6 +311,7 @@ func (ac *AwsIotClient) sendNotifyMsg(key string, data *influxdb.ReportData, upp
 		value = data.Humidity
 	default:
 		logs.Error("invalid key")
+		return
 	}
 	msg := fmt.Sprintf(msgTemplate, data.Device, data.Thing, key, value)
 	params := &sns.PublishInput{
@@ -336,18 +331,30 @@ func (ac *AwsIotClient) sendNotifyMsg(key string, data *influxdb.ReportData, upp
 	}
 	logs.Info("send(%s) notify to sns success", data.Device)
 	n := bluedb.Notify{
-		Device:  data.Device,
-		Noticed: "1",
-		Key:     dbKey,
+		ProjectId: data.ProjectId,
+		Device:    data.Device,
+		Noticed:   "1",
+		Key:       key,
+		Cause:     cause,
 	}
-	deviceSnsCache.Set(data.Device+dbKey, "1", cache.DefaultExpiration)
-	bluedb.SaveNotice(n)
+	sesscache.SetWithExpired(noticeKey, "1", 24*time.Hour)
+	d, _ := bluedb.QueryNoticeByDeviceWithCause(data.ProjectId, data.Device, key, cause)
+	if d == nil {
+		bluedb.SaveNotice(n)
+	}
 }
 
 func (ac *AwsIotClient) sendCleanMsg(key string, data *influxdb.ReportData) {
-	_, ok := deviceSnsCache.Get(data.Device + key)
-	if !ok {
-		d, _ := bluedb.QueryNoticeByDevice(data.Device, key)
+	upCause := "upper"
+	upKey := common.NoticeKey(data.ProjectId, data.Device+key+upCause)
+	upVal := sesscache.Get(upKey)
+
+	lwCause := "lower"
+	lwKey := common.NoticeKey(data.ProjectId, data.Device+key+lwCause)
+	lwVal := sesscache.Get(lwKey)
+	if len(upVal) == 0 && len(lwVal) == 0 {
+		// not send
+		d, _ := bluedb.QueryNoticeByDevice(data.ProjectId, data.Device, key)
 		if d == nil {
 			return
 		}
@@ -363,6 +370,7 @@ func (ac *AwsIotClient) sendCleanMsg(key string, data *influxdb.ReportData) {
 		value = data.Humidity
 	default:
 		logs.Error("invalid key")
+		return
 	}
 	msg := fmt.Sprintf(cleanTemplate, data.Device, data.Thing, key, value)
 	params := &sns.PublishInput{
@@ -381,10 +389,12 @@ func (ac *AwsIotClient) sendCleanMsg(key string, data *influxdb.ReportData) {
 		return
 	}
 	logs.Info("send(%s) clean to sns success", data.Device)
-	deviceSnsCache.Delete(data.Device + key)
-	bluedb.DeleteNotice(data.Device, key)
+	sesscache.Del(upKey)
+	sesscache.Del(lwKey)
+	if err := bluedb.DeleteNotice(data.ProjectId, data.Device, key); err != nil {
+		logs.Error("delete notice err:%s", err.Error())
+	}
 }
-
 
 func (ac *AwsIotClient) stopThing(thing string) {
 	defer func() {

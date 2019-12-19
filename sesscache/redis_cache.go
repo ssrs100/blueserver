@@ -37,7 +37,8 @@ func SetWithNoExpired(key, value string) {
 func Get(key string) string {
 	result, err := re.Get(key).Result()
 	if err != nil {
-		logs.Error("get key(%s) err:%s", key, err.Error())
+		logs.Info("get key(%s) fail:%s", key, err.Error())
+		return ""
 	}
 	return result
 }
