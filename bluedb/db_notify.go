@@ -35,7 +35,7 @@ func SaveNotice(notice Notify) string {
 
 func DeleteNotice(projectId, device, key string) error {
 	o := orm.NewOrm()
-	if _, err := o.Raw("delete from notify where project_id=? and device=? and key=?", projectId, device, key).Exec(); err != nil {
+	if _, err := o.Raw("delete from notify where project_id=? and device=? and `key`=?", projectId, device, key).Exec(); err != nil {
 		return err
 	}
 	return nil
