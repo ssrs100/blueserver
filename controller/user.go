@@ -208,7 +208,7 @@ func ActiveUser(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 		http.Redirect(w, req, redirectAddr, http.StatusFound)
 		return
 	}
-	logs.Info("key:%s", k)
+	logs.Info("active user key:%s", k)
 	keys := fernet.MustDecodeKeys(k)
 	tokenStr := fernet.VerifyAndDecrypt([]byte(token), 0, keys)
 	if len(tokenStr) == 0 {
