@@ -3,7 +3,6 @@ package sesscache
 import (
 	"github.com/go-redis/redis"
 	"github.com/jack0liu/conf"
-	"github.com/jack0liu/logs"
 	"time"
 )
 
@@ -37,7 +36,7 @@ func SetWithNoExpired(key, value string) {
 func Get(key string) string {
 	result, err := re.Get(key).Result()
 	if err != nil {
-		logs.Info("get key(%s) fail:%s", key, err.Error())
+		//logs.Info("get key(%s) fail:%s", key, err.Error())
 		return ""
 	}
 	return result

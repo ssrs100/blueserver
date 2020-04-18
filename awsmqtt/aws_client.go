@@ -19,6 +19,7 @@ import (
 	"github.com/ssrs100/blueserver/influxdb"
 	"github.com/ssrs100/blueserver/sesscache"
 	"io/ioutil"
+	"log"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -132,6 +133,15 @@ func InitAwsClient() {
 	<-stopChan
 }
 
+
+func (ac *AwsIotClient) publishEcho() {
+	topic := "$aws/things/"+ common.TestThing + "/echo"
+	res := ac.awsClient.client.Publish(topic, 0, false, "")
+	if res.WaitTimeout(time.Second*5) && res.Error() != nil {
+		log.Fatal("no report.json found", res.Error())
+	}
+}
+
 func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) {
 	tempMinThresh := conf.GetFloatWithDefault("temperature_min_thresh", common.MinTemp)
 	tempMaxThresh := conf.GetFloatWithDefault("temperature_max_thresh", common.MaxTemp)
@@ -150,7 +160,7 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 				logs.Debug("failed to read from shadow channel")
 			} else {
 				var rd influxdb.ReportData
-				logs.Debug("rcv thing:%s", s.Thing)
+				logs.Info("rcv thing:%s", s.Thing)
 				if err := json.Unmarshal(s.Msg, &rd); err != nil {
 					logs.Error("err:%s, msg:%s", err.Error(), string(s.Msg))
 					continue
@@ -177,6 +187,10 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 							go ac.stopThing(thing)
 						} else {
 							logs.Info("already send stop, wait cache timeout")
+						}
+						if thing == common.TestThing {
+							// for report check
+							go ac.publishEcho()
 						}
 						continue
 					}
@@ -235,8 +249,8 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 				} else {
 					go ac.sendSns(humidityKey, &rd, false, true)
 				}
-				logs.Debug("insert %v", rd)
-				logs.Debug("insert influxdb success")
+				//logs.Debug("insert %v", rd)
+				//logs.Debug("insert influxdb success")
 			}
 		case <-stop:
 			logs.Info("stopped")
@@ -273,7 +287,7 @@ func (ac *AwsIotClient) initSns() {
 }
 
 func (ac *AwsIotClient) sendSns(key string, data *influxdb.ReportData, upperLimit, isClean bool) {
-	logs.Debug("send notification for %s , upper:%v, isClean:%v", key, upperLimit, isClean)
+	//logs.Debug("send notification for %s , upper:%v, isClean:%v", key, upperLimit, isClean)
 	defer func() {
 		if p := recover(); p != nil {
 			logs.Error("panic err:%v", p)
@@ -294,7 +308,7 @@ func (ac *AwsIotClient) sendSns(key string, data *influxdb.ReportData, upperLimi
 }
 
 func (ac *AwsIotClient) sendNotifyMsg(cause, key string, data *influxdb.ReportData) {
-	logs.Debug("key:%s cause:%s", key, cause)
+	//logs.Debug("key:%s cause:%s", key, cause)
 	noticeKey := common.NoticeKey(data.ProjectId, data.Device+key+cause)
 	noticeVal := sesscache.Get(noticeKey)
 	if len(noticeVal) > 0 {

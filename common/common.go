@@ -12,6 +12,8 @@ const (
 
 	XAuthB = "X-Auth-B"
 
+	TestThing = "only_for_test_bs"
+
 	MinTemp = 0
 	MaxTemp = 30
 	MinHumi = 30

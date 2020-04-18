@@ -11,7 +11,9 @@ import (
 	"github.com/ssrs100/blueserver/awsmqtt"
 	"io/ioutil"
 	"log"
+	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -97,9 +99,17 @@ func main() {
 	if err != nil {
 		log.Fatal("subscribe thing fail, err:", err.Error())
 	}
+
+	echoTopic := strings.Replace(topic, "reports", "echo", -1)
+	echoChan, err := subscribeForThingReport(echoTopic, cli)
+	if err != nil {
+		log.Fatal("subscribe echo thing fail, err:", err.Error())
+	}
+
 	wg := sync.WaitGroup{}
-	wg.Add(1)
+	wg.Add(2)
 	go listen(reportChan, &wg)
+	go listen(echoChan, &wg)
 	res := cli.Publish(topic, 0, false, data)
 	if res.WaitTimeout(time.Second*5) && res.Error() != nil {
 		log.Fatal("no report.json found", res.Error())
@@ -128,6 +138,26 @@ func subscribeForThingReport(topic string, cli mqtt.Client) (chan *awsmqtt.Shado
 	return shadowChan, token.Error()
 }
 
+func subscribeForThingEcho(topic string, cli mqtt.Client) (chan *awsmqtt.Shadow, error) {
+	shadowChan := make(chan *awsmqtt.Shadow)
+	token := cli.Subscribe(
+		topic,
+		0,
+		func(client mqtt.Client, msg mqtt.Message) {
+			tpc := msg.Topic()
+			thing := tpc[len("$aws/things/") : len(tpc)-len("/echo")]
+			s := awsmqtt.Shadow{
+				Msg:   msg.Payload(),
+				Thing: thing,
+			}
+			shadowChan <- &s
+		},
+	)
+	token.Wait()
+
+	return shadowChan, token.Error()
+}
+
 func listen(reportChan chan *awsmqtt.Shadow, wg *sync.WaitGroup) {
 	t := time.NewTimer(10 * time.Second)
 	select {
@@ -139,6 +169,7 @@ func listen(reportChan chan *awsmqtt.Shadow, wg *sync.WaitGroup) {
 		}
 	case <-t.C:
 		log.Println("timeout, fail to receive thing")
+		os.Exit(1)
 	}
 	wg.Done()
 }
