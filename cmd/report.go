@@ -101,7 +101,7 @@ func main() {
 	}
 
 	echoTopic := strings.Replace(topic, "reports", "echo", -1)
-	echoChan, err := subscribeForThingReport(echoTopic, cli)
+	echoChan, err := subscribeForThingEcho(echoTopic, cli)
 	if err != nil {
 		log.Fatal("subscribe echo thing fail, err:", err.Error())
 	}

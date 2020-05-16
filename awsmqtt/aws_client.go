@@ -161,6 +161,11 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 			} else {
 				var rd influxdb.ReportData
 				logs.Info("rcv thing:%s", s.Thing)
+				if s.Thing == common.TestThing {
+					// for report check
+					go ac.publishEcho()
+					continue
+				}
 				if err := json.Unmarshal(s.Msg, &rd); err != nil {
 					logs.Error("err:%s, msg:%s", err.Error(), string(s.Msg))
 					continue
@@ -187,10 +192,6 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 							go ac.stopThing(thing)
 						} else {
 							logs.Info("already send stop, wait cache timeout")
-						}
-						if thing == common.TestThing {
-							// for report check
-							go ac.publishEcho()
 						}
 						continue
 					}
