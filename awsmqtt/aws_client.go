@@ -329,6 +329,16 @@ func (ac *AwsIotClient) sendNotifyMsg(cause, key string, data *influxdb.ReportDa
 		return
 	}
 	msg := fmt.Sprintf(msgTemplate, data.Device, data.Thing, key, value)
+
+	// send to app
+	devs := bluedb.QueryDevToken(data.ProjectId)
+	devTokens := make([]string, 0)
+	for _, dts := range devs {
+		devTokens = append(devTokens, dts.DeviceToken)
+	}
+	NotifyApp(devTokens, msg)
+
+	// send to sns
 	params := &sns.PublishInput{
 		Message:  aws.String(msg),
 		TopicArn: aws.String(fmt.Sprintf("arn:aws:sns:us-west-2:415890359503:%s", data.ProjectId)),
@@ -388,6 +398,16 @@ func (ac *AwsIotClient) sendCleanMsg(key string, data *influxdb.ReportData) {
 		return
 	}
 	msg := fmt.Sprintf(cleanTemplate, data.Device, data.Thing, key, value)
+
+	// send to app
+	devs := bluedb.QueryDevToken(data.ProjectId)
+	devTokens := make([]string, 0)
+	for _, dts := range devs {
+		devTokens = append(devTokens, dts.DeviceToken)
+	}
+	NotifyApp(devTokens, msg)
+
+	// send to sns
 	params := &sns.PublishInput{
 		Message:  aws.String(msg),
 		TopicArn: aws.String(fmt.Sprintf("arn:aws:sns:us-west-2:415890359503:%s", data.ProjectId)),

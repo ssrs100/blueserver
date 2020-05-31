@@ -31,14 +31,10 @@ func init() {
 
 func SaveThing(t Thing) error {
 	o := orm.NewOrm()
-	u2, err := uuid.NewV4()
-	if err != nil {
-		logs.Error("save dev uuid wrong: %s", err.Error())
-		return err
-	}
+	u2 := uuid.NewV4()
 	t.Id = u2.String()
 	// insert
-	_, err = o.Insert(&t)
+	_, err := o.Insert(&t)
 	if err != nil {
 		logs.Error("save thing fail.thing: %v", t)
 		return err

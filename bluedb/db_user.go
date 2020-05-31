@@ -26,14 +26,13 @@ func init() {
 
 func CreateUser(user User) string {
 	o := orm.NewOrm()
-	u2, err := uuid.NewV4()
-	if err != nil {
-		logs.Error("create user uuid wrong: %s", err.Error())
-		return ""
-	}
+	u2 := uuid.NewV4()
 	user.Id = u2.String()
 	// insert
 	id, err := o.Insert(&user)
+	if err != nil {
+		logs.Error("create user fail, err:%s", err.Error())
+	}
 	logs.Info("create user id: %v", id)
 	logs.Info("create user: %v", user)
 	return user.Id

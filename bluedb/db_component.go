@@ -26,14 +26,10 @@ func init() {
 
 func CreateComponent(component Component) string {
 	o := orm.NewOrm()
-	u2, err := uuid.NewV4()
-	if err != nil {
-		logs.Error("create component uuid wrong: %s", err.Error())
-		return ""
-	}
+	u2 := uuid.NewV4()
 	component.Id = u2.String()
 	// insert
-	_, err = o.Insert(&component)
+	_, err := o.Insert(&component)
 	if err != nil {
 		logs.Error("create component fail.component: %v", err.Error())
 		return ""

@@ -24,14 +24,10 @@ func init() {
 
 func SaveDevice(dev Device) string {
 	o := orm.NewOrm()
-	u2, err := uuid.NewV4()
-	if err != nil {
-		logs.Error("save dev uuid wrong: %s", err.Error())
-		return ""
-	}
+	u2 := uuid.NewV4()
 	dev.Id = u2.String()
 	// insert
-	_, err = o.Insert(&dev)
+	_, err := o.Insert(&dev)
 	if err != nil {
 		logs.Error("save dev fail.dev: %v", dev)
 	}

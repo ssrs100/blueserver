@@ -25,14 +25,10 @@ func init() {
 
 func CreateBeacon(beacon Beacon) string {
 	o := orm.NewOrm()
-	u2, err := uuid.NewV4()
-	if err != nil {
-		logs.Error("create component uuid wrong: %s", err.Error())
-		return ""
-	}
+	u2 := uuid.NewV4()
 	beacon.Id = u2.String()
 	// insert
-	_, err = o.Insert(&beacon)
+	_, err := o.Insert(&beacon)
 	if err != nil {
 		logs.Error("create beacon fail.beacon: %v", beacon)
 	}

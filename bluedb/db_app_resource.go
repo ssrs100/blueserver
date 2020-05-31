@@ -28,14 +28,14 @@ func init() {
 
 func CreateAppResource(res AppResource) string {
 	o := orm.NewOrm()
-	u2, err := uuid.NewV4()
-	if err != nil {
-		logs.Error("create user uuid wrong: %s", err.Error())
-		return ""
-	}
+	u2 := uuid.NewV4()
 	res.Id = u2.String()
 	// insert
 	id, err := o.Insert(&res)
+	if err != nil {
+		logs.Error("create app res fail: %v", id)
+		return ""
+	}
 	logs.Info("create res id: %v", id)
 	logs.Info("create res: %v", res)
 	return res.Id

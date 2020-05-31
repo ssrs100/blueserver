@@ -22,14 +22,14 @@ func init() {
 
 func SaveNotice(notice Notify) string {
 	o := orm.NewOrm()
-	u2, err := uuid.NewV4()
-	if err != nil {
-		logs.Error("create notify uuid wrong: %s", err.Error())
-		return ""
-	}
+	u2 := uuid.NewV4()
 	notice.Id = u2.String()
 	// insert
-	_, err = o.Insert(&notice)
+	_, err := o.Insert(&notice)
+	if err != nil {
+		logs.Error("save notice fail, err:%s", err.Error())
+		return ""
+	}
 	return notice.Id
 }
 

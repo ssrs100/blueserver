@@ -24,14 +24,10 @@ func init() {
 
 func CreateAttachment(attachment Attachment) string {
 	o := orm.NewOrm()
-	u2, err := uuid.NewV4()
-	if err != nil {
-		logs.Error("create user uuid wrong: %s", err.Error())
-		return ""
-	}
+	u2 := uuid.NewV4()
 	attachment.Id = u2.String()
 	// insert
-	_, err = o.Insert(&attachment)
+	_, err := o.Insert(&attachment)
 	if err != nil {
 		logs.Error("create attachment fail.attachment: %v", attachment)
 	}

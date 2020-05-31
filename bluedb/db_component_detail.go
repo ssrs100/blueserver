@@ -22,14 +22,10 @@ func init() {
 
 func CreateComponentDetail(detail ComponentDetail) string {
 	o := orm.NewOrm()
-	u2, err := uuid.NewV4()
-	if err != nil {
-		logs.Error("create detail uuid wrong: %s", err.Error())
-		return ""
-	}
+	u2 := uuid.NewV4()
 	detail.Id = u2.String()
 	// insert
-	_, err = o.Insert(&detail)
+	_, err := o.Insert(&detail)
 	if err != nil {
 		logs.Error("create detail fail.detail: %v", detail)
 		return ""
