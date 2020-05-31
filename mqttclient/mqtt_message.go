@@ -70,7 +70,7 @@ func infoCollect(client mqtt.Client, msg mqtt.Message) {
 			logs.Error("invalid rssi:%d", rssi)
 			continue
 		}
-		u2, _ := uuid.NewV4()
+		u2 := uuid.NewV4()
 		component := bluedb.Collection{
 			Id:          u2.String(),
 			ComponentId: dbCom.Id,
