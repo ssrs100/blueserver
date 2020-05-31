@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/jack0liu/conf"
@@ -89,8 +90,7 @@ func NotifyApp(deviceToken []string, title string) {
 	m := md5.New()
 	_, _ = m.Write([]byte(signRaw))
 	out := m.Sum(nil)
-	sign := string(out)
-	urlSend = urlSend + "?sign=" + sign
+	urlSend = urlSend + "?sign=" + hex.EncodeToString(out)
 
 	req, err := http.NewRequest(method, urlSend, bytes.NewReader(reqBody))
 	if err != nil {
