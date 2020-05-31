@@ -93,6 +93,10 @@ func NotifyApp(deviceToken []string, title string) {
 	urlSend = urlSend + "?sign=" + sign
 
 	req, err := http.NewRequest(method, urlSend, bytes.NewReader(reqBody))
+	if err != nil {
+		logs.Error("new request fail, err:%s", err.Error())
+		return
+	}
 	req.Header.Set("Content-Type", "application/json")
 	res, err := client.Do(req)
 	if err != nil {
