@@ -10,6 +10,15 @@ import (
 	"time"
 )
 
+
+type InnerThresh struct {
+	TemperatureMin *float32 `json:"temperature_min"`
+	TemperatureMax *float32 `json:"temperature_max"`
+	HumidityMin    *float32 `json:"humidity_min"`
+	HumidityMax    *float32 `json:"humidity_max"`
+}
+
+
 type DeviceData struct {
 	ProjectId   string      `json:"project_id"`
 	Thing       string      `json:"thing"`
@@ -20,7 +29,7 @@ type DeviceData struct {
 	Humidity    json.Number `json:"humidity"`
 	DeviceName  string      `json:"device_name"`
 	Power       string      `json:"power"`
-	Thresh      DevThresh   `json:"thresh"`
+	Thresh      InnerThresh   `json:"thresh"`
 }
 
 func GetDeviceLatestData(w http.ResponseWriter, req *http.Request, ps map[string]string) {
@@ -74,7 +83,12 @@ func GetMultiDeviceLatestData(w http.ResponseWriter, req *http.Request, ps map[s
 			Humidity:    data.Humidity,
 			DeviceName:  data.DeviceName,
 			Power:       data.Power,
-			Thresh:      thresh,
+			Thresh:      InnerThresh{
+				TemperatureMin : thresh.TemperatureMin,
+				TemperatureMax : thresh.TemperatureMax,
+				HumidityMin    : thresh.HumidityMin,
+				HumidityMax    : thresh.HumidityMax,
+			},
 		}
 		datas = append(datas, dd)
 	}
