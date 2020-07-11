@@ -187,7 +187,7 @@ func UserLogin(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 		Path:  "/",
 	})
 	sesscache.SetWithNoExpired("lastLogin_"+us.UserId, time.Now().Format(time.RFC3339))
-	sesscache.Set(string(tok), sId)
+	sesscache.SetWithExpired(string(tok), sId, time.Hour * 24 * 7)
 	logs.Info("key:%s", sId)
 	logs.Info("session:%s", string(tok))
 	// return
