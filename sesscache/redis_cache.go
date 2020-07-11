@@ -46,6 +46,6 @@ func Del(key string) {
 	re.Del(key).Result()
 }
 
-func Touch(key string) {
-	re.Expire(key, time.Hour*24)
+func TouchWithExpired(key string, expiration time.Duration) {
+	re.Expire(key, expiration)
 }

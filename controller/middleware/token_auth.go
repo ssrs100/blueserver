@@ -63,7 +63,7 @@ func Auth(fn httptreemux.HandlerFunc) httptreemux.HandlerFunc {
 			sesscache.SetWithNoExpired("lastAccess_"+us.UserId, time.Now().Format(time.RFC3339))
 		}
 
-		sesscache.Touch(token)
+		sesscache.TouchWithExpired(token, time.Hour * 24 * 7)
 		logs.Info("tokenStr:%s", tokenStr)
 		fn(w, r, ps)
 	}
