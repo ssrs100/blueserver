@@ -18,9 +18,7 @@ type DevThresh struct {
 	HumidityMax    *float32 `json:"humidity_max"`
 }
 
-func GetDeviceThresh(w http.ResponseWriter, req *http.Request, ps map[string]string) {
-	projectId := ps["projectId"]
-	device := ps["device"]
+func getDevThresh(projectId, device string) DevThresh {
 	devt, _ := bluedb.QueryDevThresh(projectId, device)
 	if devt == nil {
 		logs.Warn("not found thresh data.")
@@ -40,6 +38,13 @@ func GetDeviceThresh(w http.ResponseWriter, req *http.Request, ps map[string]str
 		HumidityMin:    &devt.HumidityMin,
 		HumidityMax:    &devt.HumidityMax,
 	}
+	return data
+}
+
+func GetDeviceThresh(w http.ResponseWriter, req *http.Request, ps map[string]string) {
+	projectId := ps["projectId"]
+	device := ps["device"]
+	data := getDevThresh(projectId, device)
 	body, err := json.Marshal(data)
 	if err != nil {
 		logs.Error("Invalid data. err:%s", err.Error())

@@ -10,6 +10,19 @@ import (
 	"time"
 )
 
+type DeviceData struct {
+	ProjectId   string      `json:"project_id"`
+	Thing       string      `json:"thing"`
+	Device      string      `json:"device"`
+	Timestamp   string      `json:"timestamp"`
+	Rssi        json.Number `json:"rssi"`
+	Temperature json.Number `json:"temperature"`
+	Humidity    json.Number `json:"humidity"`
+	DeviceName  string      `json:"device_name"`
+	Power       string      `json:"power"`
+	Thresh      DevThresh   `json:"thresh"`
+}
+
 func GetDeviceLatestData(w http.ResponseWriter, req *http.Request, ps map[string]string) {
 	projectId := ps["projectId"]
 	device := ps["device"]
@@ -42,7 +55,7 @@ func GetMultiDeviceLatestData(w http.ResponseWriter, req *http.Request, ps map[s
 		return
 	}
 	logs.Debug("device addr:%s", deviceAddrs)
-	datas := make([]*influxdb.OutData, 0)
+	datas := make([]*DeviceData, 0)
 	deviceList := strings.Split(deviceAddrs, ";")
 	for _, device := range deviceList {
 		data, err := influxdb.GetLatest("temperature", "", device, projectId)
@@ -50,7 +63,20 @@ func GetMultiDeviceLatestData(w http.ResponseWriter, req *http.Request, ps map[s
 			logs.Error("get device(%s) data. err:%s", device, err.Error())
 			continue
 		}
-		datas = append(datas, data)
+		thresh := getDevThresh(projectId, device)
+		dd := &DeviceData{
+			ProjectId:   data.ProjectId,
+			Thing:       data.Thing,
+			Device:      data.Device,
+			Timestamp:   data.Timestamp,
+			Rssi:        data.Rssi,
+			Temperature: data.Temperature,
+			Humidity:    data.Humidity,
+			DeviceName:  data.DeviceName,
+			Power:       data.Power,
+			Thresh:      thresh,
+		}
+		datas = append(datas, dd)
 	}
 	body, err := json.Marshal(datas)
 	if err != nil {
