@@ -173,9 +173,11 @@ func AddUserNotify(w http.ResponseWriter, req *http.Request, ps map[string]strin
 	}
 	logs.Info("add notify:%v", addReq)
 	var subIn *sns.SubscribeInput
+	endpointstr := ""
 	if addReq.Email != nil {
 		protocal := "email"
 		endpoint := *addReq.Email
+		endpointstr = *addReq.Email
 		subIn = &sns.SubscribeInput{
 			TopicArn: &tpc,
 			Protocol: &protocal,
@@ -198,6 +200,11 @@ func AddUserNotify(w http.ResponseWriter, req *http.Request, ps map[string]strin
 			Protocol: &protocal,
 			Endpoint: endpoint,
 		}
+		if len(endpointstr) > 0 {
+			endpointstr = endpointstr + "," + *endpoint
+		} else {
+			endpointstr = *endpoint
+		}
 		_, err = svc.Subscribe(subIn)
 		if err != nil {
 			logs.Error("add notify fail. err:%s", err.Error())
@@ -206,8 +213,9 @@ func AddUserNotify(w http.ResponseWriter, req *http.Request, ps map[string]strin
 			return
 		}
 	}
+
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(fmt.Sprintf("please confirm the subscribe(%s)", endpoint)))
+	_, _ = w.Write([]byte(fmt.Sprintf("please confirm the subscribe(%s)", endpointstr)))
 }
 
 func RmvUserNotify(w http.ResponseWriter, req *http.Request, ps map[string]string) {
