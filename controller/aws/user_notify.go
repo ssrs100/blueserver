@@ -18,8 +18,8 @@ type UserNotifyRmvReq struct {
 }
 
 type UserNotifyReq struct {
-	Email  string `json:"email"`
-	Mobile string `json:"mobile"`
+	Email  *string `json:"email"`
+	Mobile *string `json:"mobile"`
 }
 
 type NotifyInfo struct {
@@ -172,26 +172,39 @@ func AddUserNotify(w http.ResponseWriter, req *http.Request, ps map[string]strin
 		return
 	}
 	logs.Info("add notify:%v", addReq)
-	protocal := ""
-	endpoint := ""
-	if len(addReq.Email) > 0 {
-		protocal = "email"
-		endpoint = addReq.Email
-	} else if len(addReq.Mobile) > 0 {
-		protocal = "sms"
-		endpoint = addReq.Mobile
+	var subIn *sns.SubscribeInput
+	if addReq.Email != nil {
+		protocal := "email"
+		endpoint := *addReq.Email
+		subIn = &sns.SubscribeInput{
+			TopicArn: &tpc,
+			Protocol: &protocal,
+			Endpoint: &endpoint,
+		}
+		_, err = svc.Subscribe(subIn)
+		if err != nil {
+			logs.Error("add notify fail. err:%s", err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(err.Error()))
+			return
+		}
 	}
-	subIn := sns.SubscribeInput{
-		TopicArn: &tpc,
-		Protocol: &protocal,
-		Endpoint: &endpoint,
-	}
-	_, err = svc.Subscribe(&subIn)
-	if err != nil {
-		logs.Error("add notify fail. err:%s", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte(err.Error()))
-		return
+
+	if addReq.Mobile != nil {
+		protocal := "sms"
+		endpoint := addReq.Mobile
+		subIn = &sns.SubscribeInput{
+			TopicArn: &tpc,
+			Protocol: &protocal,
+			Endpoint: endpoint,
+		}
+		_, err = svc.Subscribe(subIn)
+		if err != nil {
+			logs.Error("add notify fail. err:%s", err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(err.Error()))
+			return
+		}
 	}
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(fmt.Sprintf("please confirm the subscribe(%s)", endpoint)))
