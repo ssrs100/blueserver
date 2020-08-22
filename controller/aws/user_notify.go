@@ -108,6 +108,9 @@ func GetUserNotify(w http.ResponseWriter, req *http.Request, ps map[string]strin
 	userNotifies := UserNotify{}
 	for _, sub := range subs.Subscriptions {
 		segs := strings.Split(*sub.SubscriptionArn, ":")
+		if len(segs) <= 1 {
+			continue
+		}
 		subscribeId := segs[len(segs)-1]
 		if *sub.Protocol == "sms" {
 			e := NotifyInfo{

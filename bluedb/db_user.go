@@ -44,6 +44,18 @@ func UpdateUser(user User) error {
 	return err
 }
 
+func UpdatePasswd(o orm.Ormer, userId, pass string) error {
+	if o == nil {
+		o = orm.NewOrm()
+	}
+	user := User {
+		Id: userId,
+		Passwd: pass,
+	}
+	_, err := o.Update(&user, "passwd")
+	return err
+}
+
 func DeleteUser(id string) error {
 	o := orm.NewOrm()
 	u := User{Id: id}

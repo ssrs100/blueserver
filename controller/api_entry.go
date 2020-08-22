@@ -35,6 +35,8 @@ func LoadApi() *httptreemux.TreeMux {
 
 	// Routes for users
 	router.GET("/active", ActiveUser)
+	router.POST("/v1/users/verify", SendVerifyCode)
+	router.POST("/v1/users/password/reset", ResetPwd)
 	router.GET("/v1/users", GetUsers)
 	router.GET("/v1/users/:projectId", GetUser)
 	router.POST("/v1/users", CreateUser)

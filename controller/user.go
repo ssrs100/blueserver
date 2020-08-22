@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/astaxie/beego/orm"
 	"github.com/astaxie/beego/utils"
 	"github.com/fernet/fernet-go"
 	"github.com/jack0liu/conf"
@@ -15,6 +16,7 @@ import (
 	"github.com/ssrs100/blueserver/mqttclient"
 	"github.com/ssrs100/blueserver/sesscache"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
@@ -33,6 +35,15 @@ type User struct {
 	Email   string `json:"email"`
 	Mobile  string `json:"mobile"`
 	Address string `json:"address"`
+}
+
+type ResetPassword struct {
+	Email      string `json:"email"`
+	VerifyCode string `json:"verify_code"`
+}
+
+type Verify struct {
+	Email      string `json:"email"`
 }
 
 type BindAwsUserReq struct {
@@ -187,7 +198,7 @@ func UserLogin(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 		Path:  "/",
 	})
 	sesscache.SetWithNoExpired("lastLogin_"+us.UserId, time.Now().Format(time.RFC3339))
-	sesscache.SetWithExpired(string(tok), sId, time.Hour * 24 * 7)
+	sesscache.SetWithExpired(string(tok), sId, time.Hour*24*7)
 	logs.Info("key:%s", sId)
 	logs.Info("session:%s", string(tok))
 	// return
@@ -369,6 +380,162 @@ func sendActivateEmail(toUserEmails []string, token string) error {
 	redirectAddr := conf.GetString("redirect_addr")
 	temail.HTML = "Please verify your email address by clicking the following link:<br/>" +
 		"<href>" + redirectAddr + "/feasycom/active?token=" + token + "</href><br/>It will expire in 20 minutes."
+
+	err := temail.Send()
+	if err != nil {
+		logs.Error("send email fail, err:%s", err.Error())
+		return err
+	}
+	return nil
+}
+
+func sendVerifyCodeEmail(toUserEmails []string, code string) error {
+	email := bluedb.GetSys("sysEmailUser")
+	pwd := bluedb.GetSys("sysEmailPwd")
+	config := fmt.Sprintf(`{"username":"%s","password":"%s","host":"smtp.exmail.qq.com","port":25}`, email, pwd)
+	temail := utils.NewEMail(config)
+	temail.To = toUserEmails
+	temail.From = email
+	temail.Subject = "Verify Code Check"
+
+	temail.HTML = fmt.Sprintf("Please use your Verify Code: <b>%s</b><br/>It will expire in 20 minutes.", code)
+
+	err := temail.Send()
+	if err != nil {
+		logs.Error("send email fail, err:%s", err.Error())
+		return err
+	}
+	return nil
+}
+
+func generateVerifyCode() string {
+	length := 8
+	var code []byte = make([]byte, length, length)
+
+	sourceStr := NumStr
+	rand.Seed(time.Now().UnixNano())
+	for i := 0; i < length; i++ {
+		index := rand.Intn(len(sourceStr))
+		code[i] = sourceStr[index]
+	}
+	return string(code)
+}
+
+
+func SendVerifyCode(w http.ResponseWriter, req *http.Request, _ map[string]string) {
+	body, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		logs.Error("Receive body failed: %v", err.Error())
+		DefaultHandler.ServeHTTP(w, req, err, http.StatusBadRequest)
+		return
+	}
+	defer req.Body.Close()
+
+	var verify = &Verify{}
+	err = json.Unmarshal(body, verify)
+	if err != nil {
+		logs.Error("Invalid body. err:%s", err.Error())
+		DefaultHandler.ServeHTTP(w, req, err, http.StatusBadRequest)
+		return
+	}
+	user := bluedb.QueryUserByEmail(verify.Email)
+	if user == nil {
+		logs.Error("email is invalid :%s", verify.Email)
+		DefaultHandler.ServeHTTP(w, req, errors.New("not found email"), http.StatusBadRequest)
+		return
+	}
+	code := generateVerifyCode()
+	sesscache.SetWithExpired(user.Id + "_vc", code, 20*time.Minute)
+	if err := sendVerifyCodeEmail([]string{verify.Email}, code); err != nil {
+		logs.Error("send email fail, err:%s", err.Error())
+		DefaultHandler.ServeHTTP(w, req, err, http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Add("Content-Type", "application/json")
+}
+
+func ResetPwd(w http.ResponseWriter, req *http.Request, _ map[string]string) {
+	body, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		logs.Error("Receive body failed: %v", err.Error())
+		DefaultHandler.ServeHTTP(w, req, err, http.StatusBadRequest)
+		return
+	}
+	defer req.Body.Close()
+
+	var reset = &ResetPassword{}
+	err = json.Unmarshal(body, reset)
+	if err != nil {
+		logs.Error("Invalid body. err:%s", err.Error())
+		DefaultHandler.ServeHTTP(w, req, err, http.StatusBadRequest)
+		return
+	}
+	user := bluedb.QueryUserByEmail(reset.Email)
+	if user == nil {
+		logs.Error("email is invalid :%s", reset.Email)
+		DefaultHandler.ServeHTTP(w, req, errors.New("not found email"), http.StatusBadRequest)
+		return
+	}
+	vc := sesscache.Get(user.Id + "_vc")
+	if vc != reset.VerifyCode {
+		logs.Error("Invalid verify code(%s) or expired.", reset.VerifyCode)
+		DefaultHandler.ServeHTTP(w, req, errors.New(fmt.Sprintf("Invalid verify code(%s) or expired.", reset.VerifyCode)), http.StatusBadRequest)
+		return
+	}
+	newPass := generatePasswd()
+	o := orm.NewOrm()
+	if err := o.Begin(); err != nil {
+		logs.Error("Invalid orm. err:%s", err.Error())
+		DefaultHandler.ServeHTTP(w, req, err, http.StatusInternalServerError)
+		return
+	}
+	if err := bluedb.UpdatePasswd(o, user.Id, newPass); err != nil {
+		logs.Error("update pass err:%s", err.Error())
+		o.Rollback()
+		DefaultHandler.ServeHTTP(w, req, err, http.StatusInternalServerError)
+		return
+	}
+	if err := sendResetPasswdEmail([]string{reset.Email}, newPass); err != nil {
+		logs.Error("send password email err:%s", err.Error())
+		o.Rollback()
+		DefaultHandler.ServeHTTP(w, req, err, http.StatusInternalServerError)
+		return
+	}
+	o.Commit()
+	w.WriteHeader(http.StatusOK)
+	w.Header().Add("Content-Type", "application/json")
+}
+
+const (
+	NumStr  = "0123456789"
+	CharStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+	SpecStr = "+=-@#~,.[]()!%^*$"
+)
+
+func generatePasswd() string {
+	length := 8
+	var passwd []byte = make([]byte, length, length)
+
+	sourceStr := fmt.Sprintf("%s%s%s", NumStr, CharStr, SpecStr)
+	rand.Seed(time.Now().UnixNano())
+	for i := 0; i < length; i++ {
+		index := rand.Intn(len(sourceStr))
+		passwd[i] = sourceStr[index]
+	}
+	return string(passwd)
+}
+
+func sendResetPasswdEmail(toUserEmails []string, newPass string) error {
+	email := bluedb.GetSys("sysEmailUser")
+	pwd := bluedb.GetSys("sysEmailPwd")
+	config := fmt.Sprintf(`{"username":"%s","password":"%s","host":"smtp.exmail.qq.com","port":25}`, email, pwd)
+	temail := utils.NewEMail(config)
+	temail.To = toUserEmails
+	temail.From = email
+	temail.Subject = "Reset Feasycom Account Password"
+
+	temail.HTML = fmt.Sprintf("Reset password success!<br/><br/>Please use your new password:<b>%s</b><br/>", newPass)
 
 	err := temail.Send()
 	if err != nil {
