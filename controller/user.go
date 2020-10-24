@@ -213,18 +213,21 @@ func UserLogin(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 func ActiveUser(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 	token := req.URL.Query().Get("token")
 	k := sesscache.Get(token)
+	successAddr := conf.GetString("active_success_addr")
+	failAddr := conf.GetString("active_fail_addr")
 	if len(k) == 0 {
 		logs.Error("invalid active token")
-		redirectAddr := conf.GetString("redirect_addr")
-		http.Redirect(w, req, redirectAddr, http.StatusFound)
+		http.Redirect(w, req, failAddr, http.StatusFound)
 		return
 	}
 	logs.Info("active user key:%s", k)
 	keys := fernet.MustDecodeKeys(k)
 	tokenStr := fernet.VerifyAndDecrypt([]byte(token), 0, keys)
 	if len(tokenStr) == 0 {
+		logs.Error("no token str")
 		sesscache.Del(token)
-		http.Error(w, http.StatusText(401), http.StatusUnauthorized)
+		http.Redirect(w, req, failAddr, http.StatusFound)
+		//http.Error(w, http.StatusText(401), http.StatusUnauthorized)
 		return
 	}
 	userId := string(tokenStr)
@@ -232,18 +235,19 @@ func ActiveUser(w http.ResponseWriter, req *http.Request, _ map[string]string) {
 	u, err := bluedb.QueryUserById(userId)
 	if err != nil {
 		logs.Error("get user(%s) err:%s", userId, err.Error())
-		http.Error(w, http.StatusText(401), http.StatusUnauthorized)
+		http.Redirect(w, req, failAddr, http.StatusFound)
+		//http.Error(w, http.StatusText(401), http.StatusUnauthorized)
 		return
 	}
 	u.Status = Confirmed
 	if err := bluedb.UpdateUser(u); err != nil {
 		logs.Error("update user(%s) err:%s", userId, err.Error())
-		http.Error(w, http.StatusText(401), http.StatusUnauthorized)
+		http.Redirect(w, req, failAddr, http.StatusFound)
+		//http.Error(w, http.StatusText(401), http.StatusUnauthorized)
 		return
 	}
 	logs.Info("user(%s) active success", u.Email)
-	redirectAddr := conf.GetString("redirect_addr")
-	http.Redirect(w, req, redirectAddr, http.StatusFound)
+	http.Redirect(w, req, successAddr, http.StatusSeeOther)
 }
 
 func CreateUser(w http.ResponseWriter, req *http.Request, _ map[string]string) {
