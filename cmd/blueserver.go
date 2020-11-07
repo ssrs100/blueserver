@@ -58,8 +58,11 @@ func Start() error {
 		os.Exit(1)
 	}
 	sesscache.InitRedis()
-	mc := mqttclient.InitClient()
-	mc.Start()
+
+	if len(conf.GetString("mqtt_broker")) > 0 {
+		mc := mqttclient.InitClient()
+		mc.Start()
+	}
 
 	influxdb.InitFlux()
 
