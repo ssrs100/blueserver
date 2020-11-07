@@ -521,7 +521,7 @@ func generatePasswd() string {
 	length := 8
 	var passwd []byte = make([]byte, length, length)
 
-	sourceStr := fmt.Sprintf("%s%s%s", NumStr, CharStr, SpecStr)
+	sourceStr := fmt.Sprintf("%s%s", NumStr, CharStr)
 	rand.Seed(time.Now().UnixNano())
 	for i := 0; i < length; i++ {
 		index := rand.Intn(len(sourceStr))
