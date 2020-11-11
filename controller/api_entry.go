@@ -36,13 +36,13 @@ func LoadApi() *httptreemux.TreeMux {
 	// Routes for users
 	router.GET("/active", ActiveUser)
 	router.POST("/v1/users/verify", SendVerifyCode)
-	router.POST("/v1/users/password/reset", ResetPwd)
-	router.GET("/v1/users", GetUsers)
-	router.GET("/v1/users/:projectId", GetUser)
+	router.POST("/v1/users/password/reset", s.Wrap(ResetPwd))
+	router.GET("/v1/users", s.Wrap(GetUsers))
+	router.GET("/v1/users/:projectId", s.Wrap(GetUser))
 	router.POST("/v1/users", CreateUser)
 	router.POST("/v1/users/login", UserLogin)
-	router.DELETE("/v1/users/:projectId", DeleteUser)
-	router.POST("/v1/users/:projectId", BindAwsUser)
+	router.DELETE("/v1/users/:projectId", s.Wrap(DeleteUser))
+	router.POST("/v1/users/:projectId", s.Wrap(BindAwsUser))
 
 	// Routes for beacons
 	router.POST("/proximity/v1/:projectId/beacons", RegisterBeacon)

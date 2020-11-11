@@ -616,6 +616,12 @@ func DeleteUser(w http.ResponseWriter, req *http.Request, ps map[string]string) 
 	if len(user.Name) > 0 && mqttclient.Client != nil {
 		mqttclient.Client.NotifyUserDelete(user.Name)
 	}
+
+	token := req.Header.Get(common.XAuthB)
+	logs.Info("delete session:%s", token)
+	sesscache.Del(token)
+	sesscache.Del("lastLogin_"+id)
+	sesscache.Del("lastAccess_"+id)
 	w.WriteHeader(http.StatusOK)
 
 }
