@@ -32,10 +32,19 @@ type DeviceData struct {
 	Thresh      InnerThresh   `json:"thresh"`
 }
 
+func getDataType(req *http.Request) string {
+	types := req.URL.Query()["type"]
+	if len(types) > 0 && types[0] == "sensor" {
+		return influxdb.TableBroadcast
+	} else {
+		return influxdb.TableTemperature
+	}
+}
+
 func GetDeviceLatestData(w http.ResponseWriter, req *http.Request, ps map[string]string) {
 	projectId := ps["projectId"]
 	device := ps["device"]
-	data, err := influxdb.GetLatest("temperature", "", device, projectId)
+	data, err := influxdb.GetLatest(getDataType(req), "", device, projectId)
 	if err != nil {
 		logs.Error("Invalid data. err:%s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -66,8 +75,9 @@ func GetMultiDeviceLatestData(w http.ResponseWriter, req *http.Request, ps map[s
 	logs.Debug("device addr:%s", deviceAddrs)
 	datas := make([]*DeviceData, 0)
 	deviceList := strings.Split(deviceAddrs, ";")
+	typ := getDataType(req)
 	for _, device := range deviceList {
-		data, err := influxdb.GetLatest("temperature", "", device, projectId)
+		data, err := influxdb.GetLatest(typ, "", device, projectId)
 		if err != nil {
 			logs.Error("get device(%s) data. err:%s", device, err.Error())
 			continue
@@ -122,7 +132,7 @@ func GetDeviceData(w http.ResponseWriter, req *http.Request, ps map[string]strin
 		_, _ = w.Write([]byte(strErr))
 		return
 	}
-	datas, err := influxdb.GetDataByTime("temperature", "", startAt, endAt, device, projectId)
+	datas, err := influxdb.GetDataByTime(getDataType(req), "", startAt, endAt, device, projectId)
 	if err != nil {
 		logs.Error("Invalid data. err:%s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -147,7 +157,7 @@ func GetDeviceData(w http.ResponseWriter, req *http.Request, ps map[string]strin
 
 func ListDevices(w http.ResponseWriter, req *http.Request, ps map[string]string) {
 	projectId := ps["projectId"]
-	devices, err := influxdb.GetDevicesByThing("temperature", "", projectId)
+	devices, err := influxdb.GetDevicesByThing(getDataType(req), "", projectId)
 	if err != nil {
 		logs.Error("Invalid data. err:%s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)

@@ -9,6 +9,7 @@ import (
 	"github.com/jack0liu/conf"
 	"github.com/jack0liu/utils"
 	"github.com/ssrs100/blueserver/awsmqtt"
+	"github.com/ssrs100/blueserver/influxdb"
 	"io/ioutil"
 	"log"
 	"os"
@@ -71,25 +72,17 @@ func main() {
 		log.Fatal("no report.json found")
 	}
 	topic := rpConfig.GetString("topic")
-	device := rpConfig.GetString("device")
-	rssi := rpConfig.GetInt("rssi")
-	temp := rpConfig.GetFloat("temperature")
-	humidity := rpConfig.GetFloat("humidity")
-	deviceName := rpConfig.GetString("device_name")
-	power := rpConfig.GetString("power")
 
-	t := time.Now().Unix()
-	timestamp := rpConfig.GetIntWithDefault("timestamp", int(t)) * 1000
-	pl := PayLoad{
-		Device:      device,
-		Timestamp:   timestamp,
-		Rssi:        rssi,
-		Temperature: float32(temp),
-		Humidity:    float32(humidity),
-		DeviceName:  deviceName,
-		Power:       power,
+	configJson := rpConfig.GetJson()
+	var rpData influxdb.ReportDataList
+	if err := json.Unmarshal([]byte(configJson), &rpData); err != nil {
+		log.Fatal("unmarshal fail, err:", err.Error())
 	}
-	data, err := json.Marshal(&pl)
+	for _, d := range rpData.Objects {
+		t := time.Now().Unix()
+		d.Timestamp = t * 1000
+	}
+	data, err := json.Marshal(&rpData)
 	if err != nil {
 		log.Fatal("marshal fail, err:", err.Error())
 	}

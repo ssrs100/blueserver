@@ -23,7 +23,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -31,11 +30,20 @@ var _ aws.Config
 var _ awserr.Error
 var _ request.Request
 
+type snsSend struct {
+	key        string
+	data       *influxdb.ReportData
+	upperLimit bool
+	isClean    bool
+}
+
 type AwsIotClient struct {
 	reportChan chan *Shadow
 	awsClient  *Client
 	snsClient  *sns.SNS
 	user       *bluedb.User
+
+	snsChan chan *snsSend
 }
 
 type thresh struct {
@@ -61,9 +69,22 @@ var (
 
 var stopChan chan interface{}
 
+var defaultThresh thresh
+
 func init() {
 	cleanCache = cache.New(time.Minute, 2*time.Minute)
 	useClientCache = make(map[string]*AwsIotClient)
+
+	tempMinThresh := conf.GetFloatWithDefault("temperature_min_thresh", common.MinTemp)
+	tempMaxThresh := conf.GetFloatWithDefault("temperature_max_thresh", common.MaxTemp)
+	humiMinThresh := conf.GetFloatWithDefault("humi_min_thresh", common.MinHumi)
+	humiMaxThresh := conf.GetFloatWithDefault("humi_max_thresh", common.MaxHumi)
+	defaultThresh = thresh{
+		minTemp: float32(tempMinThresh),
+		maxTemp: float32(tempMaxThresh),
+		minHum:  float32(humiMinThresh),
+		maxHum:  float32(humiMaxThresh),
+	}
 }
 
 func listAllDir(path string) []string {
@@ -125,17 +146,18 @@ func InitAwsClient() {
 			logs.Error("subscribe user(%s) thing report fail", u)
 			continue
 		}
+		awsIC.snsChan = make(chan *snsSend, 200)
 		go awsIC.startAwsClient(user.Id, stopChan)
 		awsIC.initSns()
+		go awsIC.sendSns()
 		useClientCache[u] = &awsIC
 	}
 	logs.Info("start aws client success")
 	<-stopChan
 }
 
-
 func (ac *AwsIotClient) publishEcho() {
-	topic := "$aws/things/"+ common.TestThing + "/echo"
+	topic := "$aws/things/" + common.TestThing + "/echo"
 	res := ac.awsClient.client.Publish(topic, 0, false, "")
 	if res.WaitTimeout(time.Second*5) && res.Error() != nil {
 		log.Fatal("no report.json found", res.Error())
@@ -143,119 +165,141 @@ func (ac *AwsIotClient) publishEcho() {
 }
 
 func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) {
-	tempMinThresh := conf.GetFloatWithDefault("temperature_min_thresh", common.MinTemp)
-	tempMaxThresh := conf.GetFloatWithDefault("temperature_max_thresh", common.MaxTemp)
-	humiMinThresh := conf.GetFloatWithDefault("humi_min_thresh", common.MinHumi)
-	humiMaxThresh := conf.GetFloatWithDefault("humi_max_thresh", common.MaxHumi)
-	defaultThresh := thresh{
-		minTemp: float32(tempMinThresh),
-		maxTemp: float32(tempMaxThresh),
-		minHum:  float32(humiMinThresh),
-		maxHum:  float32(humiMaxThresh),
-	}
 	for {
 		select {
 		case s, ok := <-ac.reportChan:
 			if !ok {
 				logs.Debug("failed to read from shadow channel")
 			} else {
-				var rd influxdb.ReportData
+				var rds []*influxdb.ReportData
 				logs.Info("rcv thing:%s", s.Thing)
 				if s.Thing == common.TestThing {
 					// for report check
 					go ac.publishEcho()
 					continue
 				}
-				if err := json.Unmarshal(s.Msg, &rd); err != nil {
+				logs.Debug("%s", string(s.Msg))
+
+				// set thing status
+				var dbThing *bluedb.Thing
+				thing := s.Thing
+				if dbThing = bluedb.GetThingByName(thing); dbThing == nil {
+					logs.Info("thing(%s) not register, ignore", thing)
+					if _, ok := cleanCache.Get(thing); !ok {
+						go ac.stopThing(thing)
+					} else {
+						logs.Info("already send stop, wait cache timeout")
+					}
+					continue
+				}
+				sesscache.SetWithExpired(common.StatusKey(thing), OnLine, 5*time.Minute)
+				if strconv.Itoa(dbThing.Status) != OnLine {
+					dbThing.Status = 1
+					bluedb.UpdateThingStatus(*dbThing)
+				}
+
+				// save data
+				rdList := influxdb.ReportDataList{}
+				if err := json.Unmarshal(s.Msg, &rdList); err != nil {
 					logs.Error("err:%s, msg:%s", err.Error(), string(s.Msg))
 					continue
 				}
-				var dbThing *bluedb.Thing
-				thingSegs := strings.Split(s.Thing, ":")
-				if len(thingSegs) > 1 {
-					thing := thingSegs[0]
-					projectId := thingSegs[1]
-					if dbThing = bluedb.GetThing(projectId, thing); dbThing == nil {
-						logs.Info("project(%s) thing(%s) not register, ignore", projectId, thing)
+				if len(rdList.Objects) == 0 {
+					rd := influxdb.ReportData{}
+					if err := json.Unmarshal(s.Msg, &rd); err != nil {
+						logs.Error("err:%s, msg:%s", err.Error(), string(s.Msg))
 						continue
 					}
-					sesscache.SetWithExpired(common.StatusKey(thing), OnLine, 5*time.Minute)
-					if strconv.Itoa(dbThing.Status) != OnLine {
-						dbThing.Status = 1
-						bluedb.UpdateThingStatus(*dbThing)
-					}
+					rd.Thing = dbThing.Name
+					rd.ProjectId = dbThing.ProjectId
+					rds = append(rds, &rd)
 				} else {
-					thing := s.Thing
-					if dbThing = bluedb.GetThingByName(thing); dbThing == nil {
-						logs.Info("thing(%s) not register, ignore", thing)
-						if _, ok := cleanCache.Get(thing); !ok {
-							go ac.stopThing(thing)
-						} else {
-							logs.Info("already send stop, wait cache timeout")
-						}
-						continue
-					}
-					sesscache.SetWithExpired(common.StatusKey(thing), OnLine, 5*time.Minute)
-					if strconv.Itoa(dbThing.Status) != OnLine {
-						dbThing.Status = 1
-						bluedb.UpdateThingStatus(*dbThing)
+					for _, r := range rdList.Objects {
+						r.Thing = dbThing.Name
+						r.ProjectId = dbThing.ProjectId
+						rds = append(rds, r)
 					}
 				}
-				rd.Thing = dbThing.Name
-				rd.ProjectId = dbThing.ProjectId
 
-				if err := influxdb.Insert("temperature", &rd); err != nil {
+				var sensorList, beaconList []*influxdb.ReportData
+				for _, r := range rds {
+					if r.DataType == "broadcast" {
+						beaconList = append(beaconList, r)
+					} else {
+						sensorList = append(sensorList, r)
+					}
+				}
+				if err := influxdb.InsertSensorData(influxdb.TableTemperature, sensorList); err != nil {
 					logs.Error("%s", err.Error())
-					continue
 				}
-				var tmp float32
-				tmpFloat, err := strconv.ParseFloat(string(rd.Temperature), 64)
-				if err != nil {
-					tmpInt, err := strconv.Atoi(string(rd.Temperature))
-					if err != nil {
-						logs.Error("temper err:%v", rd.Temperature)
+				if err := influxdb.InsertBeaconData(influxdb.TableBroadcast, beaconList); err != nil {
+					logs.Error("%s", err.Error())
+				}
+				for _, r := range rds {
+					if r.DataType != "broadcast" {
+						ac.processOneRdMessage(r)
 					}
-					tmp = float32(tmpInt)
-				} else {
-					tmp = float32(tmpFloat)
-				}
-
-				// humidity
-				var hum float32
-				humFloat, err := strconv.ParseFloat(string(rd.Humidity), 64)
-				if err != nil {
-					humInt, err := strconv.Atoi(string(rd.Humidity))
-					if err != nil {
-						logs.Error("humidity err:%v", rd.Humidity)
-					}
-					hum = float32(humInt)
-				} else {
-					hum = float32(humFloat)
-				}
-
-				threshDevice := getThresh(&rd, &defaultThresh)
-				if tmp >= threshDevice.maxTemp {
-					go ac.sendSns(tempKey, &rd, true, false)
-				} else if tmp < threshDevice.minTemp {
-					go ac.sendSns(tempKey, &rd, false, false)
-				} else {
-					go ac.sendSns(tempKey, &rd, false, true)
-				}
-
-				// humidity
-				if hum >= threshDevice.maxHum {
-					go ac.sendSns(humidityKey, &rd, true, false)
-				} else if hum < threshDevice.minHum {
-					go ac.sendSns(humidityKey, &rd, false, false)
-				} else {
-					go ac.sendSns(humidityKey, &rd, false, true)
 				}
 				//logs.Debug("insert %v", rd)
 				//logs.Debug("insert influxdb success")
 			}
 		case <-stop:
+			close(ac.snsChan)
 			logs.Info("stopped")
 		}
+	}
+}
+
+func (ac *AwsIotClient) processOneRdMessage(rd *influxdb.ReportData) {
+	var tmp float32
+	tmpFloat, err := strconv.ParseFloat(string(rd.Temperature), 64)
+	if err != nil {
+		tmpInt, err := strconv.Atoi(string(rd.Temperature))
+		if err != nil {
+			logs.Error("temper err:%v", rd.Temperature)
+			return
+		}
+		tmp = float32(tmpInt)
+	} else {
+		tmp = float32(tmpFloat)
+	}
+
+	// humidity
+	var hum float32
+	humFloat, err := strconv.ParseFloat(string(rd.Humidity), 64)
+	if err != nil {
+		humInt, err := strconv.Atoi(string(rd.Humidity))
+		if err != nil {
+			logs.Error("humidity err:%v", rd.Humidity)
+			return
+		}
+		hum = float32(humInt)
+	} else {
+		hum = float32(humFloat)
+	}
+
+	threshDevice := getThresh(rd, &defaultThresh)
+	if tmp >= threshDevice.maxTemp {
+		ac.snsChan <- &snsSend{key: tempKey, data: rd, upperLimit: true, isClean: false}
+		//go ac.sendSns(tempKey, rd, true, false)
+	} else if tmp < threshDevice.minTemp {
+		ac.snsChan <- &snsSend{key: tempKey, data: rd, upperLimit: false, isClean: false}
+		//go ac.sendSns(tempKey, rd, false, false)
+	} else {
+		ac.snsChan <- &snsSend{key: tempKey, data: rd, upperLimit: false, isClean: true}
+		//go ac.sendSns(tempKey, rd, false, true)
+	}
+
+	// humidity
+	if hum >= threshDevice.maxHum {
+		ac.snsChan <- &snsSend{key: humidityKey, data: rd, upperLimit: true, isClean: false}
+		//go ac.sendSns(humidityKey, rd, true, false)
+	} else if hum < threshDevice.minHum {
+		ac.snsChan <- &snsSend{key: humidityKey, data: rd, upperLimit: false, isClean: false}
+		//go ac.sendSns(humidityKey, rd, false, false)
+	} else {
+		ac.snsChan <- &snsSend{key: humidityKey, data: rd, upperLimit: false, isClean: true}
+		//go ac.sendSns(humidityKey, rd, false, true)
 	}
 }
 
@@ -287,8 +331,27 @@ func (ac *AwsIotClient) initSns() {
 	}
 }
 
-func (ac *AwsIotClient) sendSns(key string, data *influxdb.ReportData, upperLimit, isClean bool) {
-	//logs.Debug("send notification for %s , upper:%v, isClean:%v", key, upperLimit, isClean)
+func (ac *AwsIotClient) sendSns() {
+	for {
+		send, opened := <-ac.snsChan
+		if !opened {
+			logs.Info("sns chan closed")
+			return
+		}
+		cause := "upper"
+		if !send.upperLimit {
+			cause = "lower"
+		}
+		if send.isClean {
+			ac.sendCleanMsg(send.key, send.data)
+		} else {
+			ac.sendNotifyMsg(cause, send.key, send.data)
+		}
+	}
+
+}
+
+func (ac *AwsIotClient) sendNotifyMsg(cause, key string, data *influxdb.ReportData) {
 	defer func() {
 		if p := recover(); p != nil {
 			logs.Error("panic err:%v", p)
@@ -297,19 +360,6 @@ func (ac *AwsIotClient) sendSns(key string, data *influxdb.ReportData, upperLimi
 			logs.Error("==> %s\n", string(buf[:n]))
 		}
 	}()
-	cause := "upper"
-	if !upperLimit {
-		cause = "lower"
-	}
-	if isClean {
-		ac.sendCleanMsg(key, data)
-	} else {
-		ac.sendNotifyMsg(cause, key, data)
-	}
-}
-
-func (ac *AwsIotClient) sendNotifyMsg(cause, key string, data *influxdb.ReportData) {
-	//logs.Debug("key:%s cause:%s", key, cause)
 	noticeKey := common.NoticeKey(data.ProjectId, data.Device+key+cause)
 	noticeVal := sesscache.Get(noticeKey)
 	if len(noticeVal) > 0 {
@@ -370,6 +420,14 @@ func (ac *AwsIotClient) sendNotifyMsg(cause, key string, data *influxdb.ReportDa
 }
 
 func (ac *AwsIotClient) sendCleanMsg(key string, data *influxdb.ReportData) {
+	defer func() {
+		if p := recover(); p != nil {
+			logs.Error("panic err:%v", p)
+			var buf [4096]byte
+			n := runtime.Stack(buf[:], false)
+			logs.Error("==> %s\n", string(buf[:n]))
+		}
+	}()
 	upCause := "upper"
 	upKey := common.NoticeKey(data.ProjectId, data.Device+key+upCause)
 	upVal := sesscache.Get(upKey)

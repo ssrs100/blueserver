@@ -22,6 +22,12 @@ type ReportData struct {
 	Humidity    json.Number `json:"humidity"`
 	DeviceName  string      `json:"device_name"`
 	Power       string      `json:"power"`
+	DataType    string      `json:"data_type,omitempty"`
+	Data        string      `json:"data,omitempty"`
+}
+
+type ReportDataList struct {
+	Objects []*ReportData `json:"objs"`
 }
 
 type OutData struct {
@@ -52,6 +58,9 @@ type InfluxClient struct {
 var influx InfluxClient
 
 const (
+	TableTemperature = "temperature"
+	TableBroadcast = "broadcast"
+
 	dbName    = "blue"
 	retention = "default"
 
@@ -64,6 +73,7 @@ const (
 	columnProjectId   = "project_id"
 	columnDeviceName  = "device_name"
 	columnPower       = "power"
+	columnData        = "data"
 )
 
 var columns = []string{
@@ -99,30 +109,75 @@ func InitFlux() {
 	influx.c = con
 }
 
-func Insert(table string, data *ReportData) error {
-	fields := make(map[string]interface{})
-	fields[columnTemperature] = string(data.Temperature)
-	fields[columnHumidity] = string(data.Humidity)
-	fields[columnRssi] = string(data.Rssi)
-	fields[columnDeviceName] = data.DeviceName
-	fields[columnPower] = data.Power
-	rdTime := time.Unix(0, data.Timestamp*1000000)
-
-	tags := make(map[string]string)
-	tags[columnProjectId] = data.ProjectId
-	tags[columnThing] = data.Thing
-	tags[columnDevice] = data.Device
-
-	pts := make([]client.Point, 0)
-	p := client.Point{
-		Measurement: table,
-		Tags:        tags,
-		Fields:      fields,
-		Time:        rdTime,
-		//Precision:   "n",
+func InsertSensorData(table string, dataList []*ReportData) error {
+	if len(dataList) == 0 {
+		logs.Debug("no data")
+		return nil
 	}
-	pts = append(pts, p)
+	pts := make([]client.Point, 0)
+	for _, data := range dataList {
+		fields := make(map[string]interface{})
+		fields[columnTemperature] = string(data.Temperature)
+		fields[columnHumidity] = string(data.Humidity)
+		fields[columnRssi] = string(data.Rssi)
+		fields[columnDeviceName] = data.DeviceName
+		fields[columnPower] = data.Power
+		rdTime := time.Unix(0, data.Timestamp*1000000)
 
+		tags := make(map[string]string)
+		tags[columnProjectId] = data.ProjectId
+		tags[columnThing] = data.Thing
+		tags[columnDevice] = data.Device
+
+		p := client.Point{
+			Measurement: table,
+			Tags:        tags,
+			Fields:      fields,
+			Time:        rdTime,
+			//Precision:   "n",
+		}
+		pts = append(pts, p)
+	}
+	bps := client.BatchPoints{
+		Points:          pts,
+		Database:        dbName,
+		RetentionPolicy: retention,
+	}
+	_, err := influx.c.Write(bps)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func InsertBeaconData(table string, dataList []*ReportData) error {
+	if len(dataList) == 0 {
+		logs.Debug("no data")
+		return nil
+	}
+	pts := make([]client.Point, 0)
+	for _, data := range dataList {
+		fields := make(map[string]interface{})
+		fields[columnRssi] = string(data.Rssi)
+		fields[columnDeviceName] = data.DeviceName
+		fields[columnPower] = data.Power
+		fields[columnData] = data.Data
+		rdTime := time.Unix(0, data.Timestamp*1000000)
+
+		tags := make(map[string]string)
+		tags[columnProjectId] = data.ProjectId
+		tags[columnThing] = data.Thing
+		tags[columnDevice] = data.Device
+
+		p := client.Point{
+			Measurement: table,
+			Tags:        tags,
+			Fields:      fields,
+			Time:        rdTime,
+			//Precision:   "n",
+		}
+		pts = append(pts, p)
+	}
 	bps := client.BatchPoints{
 		Points:          pts,
 		Database:        dbName,

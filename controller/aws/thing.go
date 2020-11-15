@@ -412,7 +412,10 @@ func RemoveThing(w http.ResponseWriter, req *http.Request, ps map[string]string)
 		_, _ = w.Write([]byte(err.Error()))
 		return
 	}
-	if err := influxdb.DeleteData("temperature", thingName, projectId); err != nil {
+	if err := influxdb.DeleteData(influxdb.TableTemperature, thingName, projectId); err != nil {
+		logs.Error(err.Error())
+	}
+	if err := influxdb.DeleteData(influxdb.TableBroadcast, thingName, projectId); err != nil {
 		logs.Error(err.Error())
 	}
 
@@ -437,7 +440,7 @@ func GetThingLatestData(w http.ResponseWriter, req *http.Request, ps map[string]
 		return
 	}
 	device := req.URL.Query().Get("device")
-	data, err := influxdb.GetLatest("temperature", thingName, device, projectId)
+	data, err := influxdb.GetLatest(getDataType(req), thingName, device, projectId)
 	if err != nil {
 		logs.Error("Invalid data. err:%s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -482,7 +485,7 @@ func GetThingData(w http.ResponseWriter, req *http.Request, ps map[string]string
 		_, _ = w.Write([]byte(strErr))
 		return
 	}
-	datas, err := influxdb.GetDataByTime("temperature", thingName, startAt, endAt, device, projectId)
+	datas, err := influxdb.GetDataByTime(getDataType(req), thingName, startAt, endAt, device, projectId)
 	if err != nil {
 		logs.Error("Invalid data. err:%s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -515,7 +518,7 @@ func GetThingDevice(w http.ResponseWriter, req *http.Request, ps map[string]stri
 		_, _ = w.Write([]byte("thing name not found"))
 		return
 	}
-	devices, err := influxdb.GetDevicesByThing("temperature", thingName, projectId)
+	devices, err := influxdb.GetDevicesByThing(getDataType(req), thingName, projectId)
 	if err != nil {
 		logs.Error("Invalid data. err:%s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
