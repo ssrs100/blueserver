@@ -223,7 +223,7 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 
 				var sensorList, beaconList []*influxdb.ReportData
 				for _, r := range rds {
-					if r.DataType == "broadcast" {
+					if r.DataType == common.DataTypeBroadcast {
 						beaconList = append(beaconList, r)
 					} else {
 						sensorList = append(sensorList, r)
@@ -236,7 +236,7 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 					logs.Error("%s", err.Error())
 				}
 				for _, r := range rds {
-					if r.DataType != "broadcast" {
+					if r.DataType != common.DataTypeBroadcast {
 						ac.processOneRdMessage(r)
 					}
 				}

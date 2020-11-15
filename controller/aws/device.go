@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/jack0liu/logs"
+	"github.com/ssrs100/blueserver/common"
 	"github.com/ssrs100/blueserver/influxdb"
 	"net/http"
 	"strings"
 	"time"
 )
-
 
 type InnerThresh struct {
 	TemperatureMin *float32 `json:"temperature_min"`
@@ -18,23 +18,23 @@ type InnerThresh struct {
 	HumidityMax    *float32 `json:"humidity_max"`
 }
 
-
 type DeviceData struct {
-	ProjectId   string      `json:"project_id"`
-	Thing       string      `json:"thing"`
-	Device      string      `json:"device"`
-	Timestamp   string      `json:"timestamp"`
-	Rssi        json.Number `json:"rssi"`
-	Temperature json.Number `json:"temperature"`
-	Humidity    json.Number `json:"humidity"`
-	DeviceName  string      `json:"device_name"`
-	Power       string      `json:"power"`
-	Thresh      InnerThresh   `json:"thresh"`
+	ProjectId   string       `json:"project_id"`
+	Thing       string       `json:"thing"`
+	Device      string       `json:"device"`
+	Timestamp   string       `json:"timestamp"`
+	Rssi        json.Number  `json:"rssi"`
+	Temperature *json.Number `json:"temperature,omitempty"`
+	Humidity    *json.Number `json:"humidity,omitempty"`
+	DeviceName  string       `json:"device_name"`
+	Power       string       `json:"power"`
+	Data        *string      `json:"data,omitempty"`
+	Thresh      InnerThresh  `json:"thresh"`
 }
 
 func getDataType(req *http.Request) string {
 	types := req.URL.Query()["type"]
-	if len(types) > 0 && types[0] == "sensor" {
+	if len(types) > 0 && types[0] == common.DataTypeBroadcast {
 		return influxdb.TableBroadcast
 	} else {
 		return influxdb.TableTemperature
@@ -93,11 +93,12 @@ func GetMultiDeviceLatestData(w http.ResponseWriter, req *http.Request, ps map[s
 			Humidity:    data.Humidity,
 			DeviceName:  data.DeviceName,
 			Power:       data.Power,
-			Thresh:      InnerThresh{
-				TemperatureMin : thresh.TemperatureMin,
-				TemperatureMax : thresh.TemperatureMax,
-				HumidityMin    : thresh.HumidityMin,
-				HumidityMax    : thresh.HumidityMax,
+			Data:        data.Data,
+			Thresh: InnerThresh{
+				TemperatureMin: thresh.TemperatureMin,
+				TemperatureMax: thresh.TemperatureMax,
+				HumidityMin:    thresh.HumidityMin,
+				HumidityMax:    thresh.HumidityMax,
 			},
 		}
 		datas = append(datas, dd)

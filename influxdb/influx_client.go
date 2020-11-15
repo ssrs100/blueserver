@@ -2,13 +2,12 @@ package influxdb
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	client "github.com/influxdata/influxdb1-client"
 	"github.com/jack0liu/conf"
 	"github.com/jack0liu/logs"
 	"net/url"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -31,15 +30,16 @@ type ReportDataList struct {
 }
 
 type OutData struct {
-	ProjectId   string      `json:"project_id"`
-	Thing       string      `json:"thing"`
-	Device      string      `json:"device"`
-	Timestamp   string      `json:"timestamp"`
-	Rssi        json.Number `json:"rssi"`
-	Temperature json.Number `json:"temperature"`
-	Humidity    json.Number `json:"humidity"`
-	DeviceName  string      `json:"device_name"`
-	Power       string      `json:"power"`
+	ProjectId   string       `json:"project_id"`
+	Thing       string       `json:"thing"`
+	Device      string       `json:"device"`
+	Timestamp   string       `json:"timestamp"`
+	Rssi        json.Number  `json:"rssi"`
+	Temperature *json.Number `json:"temperature,omitempty"`
+	Humidity    *json.Number `json:"humidity,omitempty"`
+	DeviceName  string       `json:"device_name"`
+	Power       string       `json:"power"`
+	Data        *string      `json:"data,omitempty"`
 }
 
 type OutDataList struct {
@@ -59,7 +59,7 @@ var influx InfluxClient
 
 const (
 	TableTemperature = "temperature"
-	TableBroadcast = "broadcast"
+	TableBroadcast   = "broadcast"
 
 	dbName    = "blue"
 	retention = "default"
@@ -75,26 +75,6 @@ const (
 	columnPower       = "power"
 	columnData        = "data"
 )
-
-var columns = []string{
-	columnTime,
-	columnDevice,
-	columnHumidity,
-	columnRssi,
-	columnTemperature,
-	columnThing,
-	columnProjectId,
-	columnDeviceName,
-	columnPower,
-}
-var columnStr string
-
-func init() {
-	for _, v := range columns {
-		columnStr = columnStr + v + ","
-	}
-	columnStr = strings.TrimRight(columnStr, ",")
-}
 
 func InitFlux() {
 	host := conf.GetStringWithDefault("influx_host", "localhost")
@@ -190,7 +170,26 @@ func InsertBeaconData(table string, dataList []*ReportData) error {
 	return nil
 }
 
+func getColumnStr(table string) string {
+	columnStr := sensorColumnStr
+	if table == TableBroadcast {
+		columnStr = broadcastColumnStr
+	}
+	return columnStr
+}
+
+func checkTable(table string) error {
+	if _, ok := tableData[table]; !ok {
+		return errors.New(fmt.Sprintf("no table(%s)", table))
+	}
+	return nil
+}
+
 func GetLatest(table string, thing, device, projectId string) (data *OutData, err error) {
+	if err := checkTable(table); err != nil {
+		return nil, err
+	}
+	columnStr := getColumnStr(table)
 	cmd := fmt.Sprintf("select %s from %s where project_id='%s'", columnStr, table, projectId)
 	tail := " order by time desc limit 1"
 	if len(thing) > 0 {
@@ -216,83 +215,19 @@ func GetLatest(table string, thing, device, projectId string) (data *OutData, er
 			continue
 		}
 		for _, data := range v.Series[0].Values {
-			return getOneData(data), nil
+			return tableData[table](data), nil
 		}
 	}
 
 	return nil, response.Err
 }
 
-func getOneData(data []interface{}) *OutData {
-	if len(data) < len(columns) {
-		logs.Warn("columns less %d", len(columns))
-		return nil
-	}
-	ret := OutData{}
-	ret.Timestamp, _ = data[0].(string)
-	ret.Device, _ = data[1].(string)
-
-	humi, ok := data[2].(string)
-	if ok {
-		ret.Humidity = json.Number(humi)
-	} else {
-		humidityFloat, ok := data[2].(float64)
-		if ok {
-			ret.Humidity = json.Number(strconv.FormatFloat(humidityFloat, 'G', 5, 64))
-		} else {
-			humidityInt, ok := data[2].(int)
-			if ok {
-				ret.Humidity = json.Number(strconv.Itoa(humidityInt))
-			} else {
-				logs.Error("invalid humidity:%v", data[2])
-			}
-		}
-	}
-
-	rssi, ok := data[3].(string)
-	if ok {
-		ret.Rssi = json.Number(rssi)
-	} else {
-		rssiInt, ok := data[3].(int)
-		if ok {
-			ret.Rssi = json.Number(strconv.Itoa(rssiInt))
-		} else {
-			rssiFloat, ok := data[3].(float64)
-			if ok {
-				ret.Rssi = json.Number(strconv.FormatFloat(rssiFloat, 'G', 5, 64))
-			} else {
-				logs.Error("invalid rssi:%v", data[2])
-			}
-		}
-	}
-
-	temp, ok := data[4].(string)
-	if ok {
-		ret.Temperature = json.Number(temp)
-	} else {
-		tempFloat, ok := data[4].(float64)
-		if ok {
-			ret.Temperature = json.Number(strconv.FormatFloat(tempFloat, 'G', 5, 64))
-		} else {
-			tempInt, ok := data[4].(int)
-			if ok {
-				ret.Temperature = json.Number(strconv.Itoa(tempInt))
-			} else {
-				logs.Error("invalid temper:%v", data[4])
-			}
-		}
-	}
-	thingName, _ := data[5].(string)
-	thingSegs := strings.Split(thingName, ":")
-	ret.Thing = thingSegs[0]
-	ret.ProjectId, _ = data[6].(string)
-	ret.DeviceName, _ = data[7].(string)
-	ret.Power, _ = data[8].(string)
-	return &ret
-}
-
 func GetDataByTime(table string, thing, startAt, endAt, device, projectId string) (datas []*OutData, err error) {
 	// startAt, endAt like '2019-08-17T06:40:27.995Z'
+	if err := checkTable(table); err != nil {
+		return nil, err
+	}
+	columnStr := getColumnStr(table)
 	cmd := fmt.Sprintf("select %s from %s where time >= '%s' and time < '%s' and project_id='%s'", columnStr, table, startAt, endAt, projectId)
 	tail := " order by time desc limit 1000"
 	if len(thing) > 0 {
@@ -318,7 +253,7 @@ func GetDataByTime(table string, thing, startAt, endAt, device, projectId string
 			continue
 		}
 		for _, data := range v.Series[0].Values {
-			d := getOneData(data)
+			d := tableData[table](data)
 			retList = append(retList, d)
 		}
 	}
@@ -328,6 +263,9 @@ func GetDataByTime(table string, thing, startAt, endAt, device, projectId string
 
 func GetDevicesByThing(table string, thing, projectId string) (devices []string, err error) {
 	//cmd := fmt.Sprintf("select distinct(device) from %s where project_id='%s'", table, projectId)
+	if err := checkTable(table); err != nil {
+		return nil, err
+	}
 	cmd := fmt.Sprintf("select count(*) from %s where project_id='%s' group by device", table, projectId)
 	if len(thing) > 0 {
 		cmd = cmd + fmt.Sprintf(" and thing='%s'", thing)
