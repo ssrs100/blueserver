@@ -12,10 +12,10 @@ import (
 )
 
 type InnerThresh struct {
-	TemperatureMin *float32 `json:"temperature_min"`
-	TemperatureMax *float32 `json:"temperature_max"`
-	HumidityMin    *float32 `json:"humidity_min"`
-	HumidityMax    *float32 `json:"humidity_max"`
+	TemperatureMin *float64 `json:"temperature_min"`
+	TemperatureMax *float64 `json:"temperature_max"`
+	HumidityMin    *float64 `json:"humidity_min"`
+	HumidityMax    *float64 `json:"humidity_max"`
 }
 
 type DeviceData struct {
