@@ -101,7 +101,7 @@ func getOneSensorData(data []interface{}) *OutData {
 			if ok {
 				ret.Power = strconv.FormatFloat(powerFloat, 'G', 5, 64)
 			} else {
-				logs.Error("invalid rssi:%v", data[2])
+				logs.Error("invalid power:%v", data[8])
 			}
 		}
 	}
