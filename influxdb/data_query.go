@@ -75,16 +75,6 @@ func toString(val interface{}) string {
 	}
 }
 
-func getOneGroupData(data []interface{}) *GroupData {
-	if len(data) < len(groupColumns) {
-		logs.Warn("columns less %d", len(groupColumns) )
-		return nil
-	}
-	ret := GroupData{}
-	ret.Data = data
-	return &ret
-}
-
 func getOneSensorData(data []interface{}) *OutData {
 	if len(data) < len(sensorColumns) {
 		logs.Warn("columns less %d", len(sensorColumns))
