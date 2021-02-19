@@ -89,6 +89,23 @@ func getOneSensorData(data []interface{}) *OutData {
 		}
 	}
 
+	power, ok := data[8].(string)
+	if ok {
+		ret.Power = power
+	} else {
+		powerInt, ok := data[8].(int)
+		if ok {
+			ret.Power = strconv.Itoa(powerInt)
+		} else {
+			powerFloat, ok := data[8].(float64)
+			if ok {
+				ret.Power = strconv.FormatFloat(powerFloat, 'G', 5, 64)
+			} else {
+				logs.Error("invalid rssi:%v", data[2])
+			}
+		}
+	}
+
 	temp, ok := data[4].(string)
 	if ok {
 		h := json.Number(temp)
@@ -113,7 +130,6 @@ func getOneSensorData(data []interface{}) *OutData {
 	ret.Thing = thingSegs[0]
 	ret.ProjectId, _ = data[6].(string)
 	ret.DeviceName, _ = data[7].(string)
-	ret.Power, _ = data[8].(string)
 	return &ret
 }
 
@@ -140,6 +156,23 @@ func getOneBroadcastData(data []interface{}) *OutData {
 				ret.Rssi = json.Number(strconv.FormatFloat(rssiFloat, 'G', 5, 64))
 			} else {
 				logs.Error("invalid rssi:%v", rso)
+			}
+		}
+	}
+
+	power, ok := data[8].(string)
+	if ok {
+		ret.Power = power
+	} else {
+		powerInt, ok := data[8].(int)
+		if ok {
+			ret.Power = strconv.Itoa(powerInt)
+		} else {
+			powerFloat, ok := data[8].(float64)
+			if ok {
+				ret.Power = strconv.FormatFloat(powerFloat, 'G', 5, 64)
+			} else {
+				logs.Error("invalid rssi:%v", data[2])
 			}
 		}
 	}

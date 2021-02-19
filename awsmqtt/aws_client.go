@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -32,7 +33,7 @@ var _ request.Request
 
 type snsSend struct {
 	key        string
-	data       *influxdb.ReportData
+	data       *influxdb.RecordData
 	upperLimit bool
 	isClean    bool
 }
@@ -47,10 +48,10 @@ type AwsIotClient struct {
 }
 
 type thresh struct {
-	minTemp float32
-	maxTemp float32
-	minHum  float32
-	maxHum  float32
+	minTemp float64
+	maxTemp float64
+	minHum  float64
+	maxHum  float64
 }
 
 const (
@@ -80,10 +81,10 @@ func init() {
 	humiMinThresh := conf.GetFloatWithDefault("humi_min_thresh", common.MinHumi)
 	humiMaxThresh := conf.GetFloatWithDefault("humi_max_thresh", common.MaxHumi)
 	defaultThresh = thresh{
-		minTemp: float32(tempMinThresh),
-		maxTemp: float32(tempMaxThresh),
-		minHum:  float32(humiMinThresh),
-		maxHum:  float32(humiMaxThresh),
+		minTemp: tempMinThresh,
+		maxTemp: tempMaxThresh,
+		minHum:  humiMinThresh,
+		maxHum:  humiMaxThresh,
 	}
 }
 
@@ -221,12 +222,13 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 					}
 				}
 
-				var sensorList, beaconList []*influxdb.ReportData
+				var sensorList, beaconList []*influxdb.RecordData
 				for _, r := range rds {
+					record := ac.transData(r)
 					if r.DataType == common.DataTypeBroadcast {
-						beaconList = append(beaconList, r)
+						beaconList = append(beaconList, record)
 					} else {
-						sensorList = append(sensorList, r)
+						sensorList = append(sensorList, record)
 					}
 				}
 				if err := influxdb.InsertSensorData(influxdb.TableTemperature, sensorList); err != nil {
@@ -235,10 +237,8 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 				if err := influxdb.InsertBeaconData(influxdb.TableBroadcast, beaconList); err != nil {
 					logs.Error("%s", err.Error())
 				}
-				for _, r := range rds {
-					if r.DataType != common.DataTypeBroadcast {
-						ac.processOneRdMessage(r)
-					}
+				for _, r := range sensorList {
+					ac.processOneRdMessage(r)
 				}
 				//logs.Debug("insert %v", rd)
 				//logs.Debug("insert influxdb success")
@@ -250,39 +250,52 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 	}
 }
 
-func (ac *AwsIotClient) processOneRdMessage(rd *influxdb.ReportData) {
-	var tmp float32
-	tmpFloat, err := strconv.ParseFloat(string(rd.Temperature), 64)
+func (ac *AwsIotClient) transData(data *influxdb.ReportData) *influxdb.RecordData {
+	rd := influxdb.RecordData{
+		ProjectId   : data.ProjectId,
+		Device      : data.Device,
+		Thing       : data.Thing,
+		Timestamp   : data.Timestamp,
+		DeviceName  : data.DeviceName,
+		DataType    : data.DataType,
+		Data        : data.Data,
+	}
+	humFloat, err := strconv.ParseFloat(string(data.Humidity), 64)
 	if err != nil {
-		tmpInt, err := strconv.Atoi(string(rd.Temperature))
-		if err != nil {
-			logs.Error("temper err:%v", rd.Temperature)
-			return
-		}
-		tmp = float32(tmpInt)
+		logs.Error("humi err: %v", err)
 	} else {
-		tmp = float32(tmpFloat)
+		rd.Humidity = humFloat
 	}
 
-	// humidity
-	var hum float32
-	humFloat, err := strconv.ParseFloat(string(rd.Humidity), 64)
+	tempFloat, err := strconv.ParseFloat(string(data.Temperature), 64)
 	if err != nil {
-		humInt, err := strconv.Atoi(string(rd.Humidity))
-		if err != nil {
-			logs.Error("humidity err:%v", rd.Humidity)
-			return
-		}
-		hum = float32(humInt)
+		logs.Error("temperature err: %v", err)
 	} else {
-		hum = float32(humFloat)
+		rd.Temperature = tempFloat
 	}
 
+	rssiFloat, err := strconv.ParseFloat(string(data.Rssi), 64)
+	if err != nil {
+		logs.Error("rssi err: %v", err)
+	} else {
+		rd.Rssi = rssiFloat
+	}
+
+	powerFloat, err := strconv.ParseFloat(strings.TrimRight(data.Power, "%"), 64)
+	if err != nil {
+		logs.Error("power err: %v", err)
+	} else {
+		rd.Power = powerFloat
+	}
+	return &rd
+}
+
+func (ac *AwsIotClient) processOneRdMessage(rd *influxdb.RecordData) {
 	threshDevice := getThresh(rd, &defaultThresh)
-	if tmp >= threshDevice.maxTemp {
+	if rd.Temperature >= threshDevice.maxTemp {
 		ac.snsChan <- &snsSend{key: tempKey, data: rd, upperLimit: true, isClean: false}
 		//go ac.sendSns(tempKey, rd, true, false)
-	} else if tmp < threshDevice.minTemp {
+	} else if rd.Temperature < threshDevice.minTemp {
 		ac.snsChan <- &snsSend{key: tempKey, data: rd, upperLimit: false, isClean: false}
 		//go ac.sendSns(tempKey, rd, false, false)
 	} else {
@@ -291,10 +304,10 @@ func (ac *AwsIotClient) processOneRdMessage(rd *influxdb.ReportData) {
 	}
 
 	// humidity
-	if hum >= threshDevice.maxHum {
+	if rd.Humidity >= threshDevice.maxHum {
 		ac.snsChan <- &snsSend{key: humidityKey, data: rd, upperLimit: true, isClean: false}
 		//go ac.sendSns(humidityKey, rd, true, false)
-	} else if hum < threshDevice.minHum {
+	} else if rd.Humidity < threshDevice.minHum {
 		ac.snsChan <- &snsSend{key: humidityKey, data: rd, upperLimit: false, isClean: false}
 		//go ac.sendSns(humidityKey, rd, false, false)
 	} else {
@@ -303,7 +316,7 @@ func (ac *AwsIotClient) processOneRdMessage(rd *influxdb.ReportData) {
 	}
 }
 
-func getThresh(data *influxdb.ReportData, defaultThresh *thresh) *thresh {
+func getThresh(data *influxdb.RecordData, defaultThresh *thresh) *thresh {
 
 	dt, _ := bluedb.QueryDevThresh(data.ProjectId, data.Device)
 	if dt == nil {
@@ -351,7 +364,7 @@ func (ac *AwsIotClient) sendSns() {
 
 }
 
-func (ac *AwsIotClient) sendNotifyMsg(cause, key string, data *influxdb.ReportData) {
+func (ac *AwsIotClient) sendNotifyMsg(cause, key string, data *influxdb.RecordData) {
 	defer func() {
 		if p := recover(); p != nil {
 			logs.Error("panic err:%v", p)
@@ -419,7 +432,7 @@ func (ac *AwsIotClient) sendNotifyMsg(cause, key string, data *influxdb.ReportDa
 	}
 }
 
-func (ac *AwsIotClient) sendCleanMsg(key string, data *influxdb.ReportData) {
+func (ac *AwsIotClient) sendCleanMsg(key string, data *influxdb.RecordData) {
 	defer func() {
 		if p := recover(); p != nil {
 			logs.Error("panic err:%v", p)

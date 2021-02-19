@@ -12,10 +12,10 @@ type DeviceThresh struct {
 	DevId          string  `orm:"size(64)"` // db in device
 	ProjectId      string  `orm:"size(64)"`
 	DeviceId       string  `orm:"size(128)"`
-	TemperatureMin float32 `orm:"default(0)"`
-	HumidityMin    float32 `orm:"default(0)"`
-	TemperatureMax float32 `orm:"default(0)"`
-	HumidityMax    float32 `orm:"default(0)"`
+	TemperatureMin float64 `orm:"default(0)"`
+	HumidityMin    float64 `orm:"default(0)"`
+	TemperatureMax float64 `orm:"default(0)"`
+	HumidityMax    float64 `orm:"default(0)"`
 }
 
 func init() {

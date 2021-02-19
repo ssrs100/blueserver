@@ -29,6 +29,20 @@ type ReportDataList struct {
 	Objects []*ReportData `json:"objs"`
 }
 
+type RecordData struct {
+	ProjectId   string  `json:"project_id"`
+	Device      string  `json:"device"`
+	Thing       string  `json:"thing"`
+	Timestamp   int64   `json:"timestamp"`
+	Rssi        float64 `json:"rssi"`
+	Temperature float64 `json:"temperature"`
+	Humidity    float64 `json:"humidity"`
+	DeviceName  string  `json:"device_name"`
+	Power       float64 `json:"power"`
+	DataType    string  `json:"data_type,omitempty"`
+	Data        string  `json:"data,omitempty"`
+}
+
 type OutData struct {
 	ProjectId   string       `json:"project_id"`
 	Thing       string       `json:"thing"`
@@ -89,17 +103,17 @@ func InitFlux() {
 	influx.c = con
 }
 
-func InsertSensorData(table string, dataList []*ReportData) error {
+func InsertSensorData(table string, dataList []*RecordData) error {
 	if len(dataList) == 0 {
-		logs.Debug("no data")
+		logs.Debug("no sensor data")
 		return nil
 	}
 	pts := make([]client.Point, 0)
 	for _, data := range dataList {
 		fields := make(map[string]interface{})
-		fields[columnTemperature] = string(data.Temperature)
-		fields[columnHumidity] = string(data.Humidity)
-		fields[columnRssi] = string(data.Rssi)
+		fields[columnTemperature] = data.Temperature
+		fields[columnHumidity] = data.Humidity
+		fields[columnRssi] = data.Rssi
 		fields[columnDeviceName] = data.DeviceName
 		fields[columnPower] = data.Power
 		rdTime := time.Unix(0, data.Timestamp*1000000)
@@ -130,15 +144,15 @@ func InsertSensorData(table string, dataList []*ReportData) error {
 	return nil
 }
 
-func InsertBeaconData(table string, dataList []*ReportData) error {
+func InsertBeaconData(table string, dataList []*RecordData) error {
 	if len(dataList) == 0 {
-		logs.Debug("no data")
+		logs.Debug("no beacon data")
 		return nil
 	}
 	pts := make([]client.Point, 0)
 	for _, data := range dataList {
 		fields := make(map[string]interface{})
-		fields[columnRssi] = string(data.Rssi)
+		fields[columnRssi] = data.Rssi
 		fields[columnDeviceName] = data.DeviceName
 		fields[columnPower] = data.Power
 		fields[columnData] = data.Data
