@@ -3,6 +3,7 @@ package influxdb
 import (
 	"encoding/json"
 	"github.com/jack0liu/logs"
+	"reflect"
 	"strconv"
 	"strings"
 )
@@ -43,6 +44,29 @@ func init() {
 	tableData[TableTemperature] = getOneSensorData
 }
 
+func toString(val interface{}) string {
+	switch val.(type) {
+	case string:
+		logs.Debug("this is string, %v", val)
+		return val.(string)
+	case float64:
+		v := val.(float64)
+		logs.Debug("this is float64, %v", val)
+		return strconv.FormatFloat(v, 'G', 5, 64)
+	case float32:
+		v := val.(float32)
+		logs.Debug("this is float32, %v", val)
+		return strconv.FormatFloat(float64(v), 'G', 5, 64)
+	case int:
+		v := val.(int)
+		logs.Debug("this is int, %v", val)
+		return strconv.Itoa(v)
+	default:
+		logs.Error("unknown data type, %v", reflect.TypeOf(val))
+		return ""
+	}
+}
+
 func getOneSensorData(data []interface{}) *OutData {
 	if len(data) < len(sensorColumns) {
 		logs.Warn("columns less %d", len(sensorColumns))
@@ -52,79 +76,18 @@ func getOneSensorData(data []interface{}) *OutData {
 	ret.Timestamp, _ = data[0].(string)
 	ret.Device, _ = data[1].(string)
 
-	humi, ok := data[2].(string)
-	if ok {
-		h := json.Number(humi)
-		ret.Humidity = &h
-	} else {
-		humidityFloat, ok := data[2].(float64)
-		if ok {
-			h := json.Number(strconv.FormatFloat(humidityFloat, 'G', 5, 64))
-			ret.Humidity = &h
-		} else {
-			humidityInt, ok := data[2].(int)
-			if ok {
-				h := json.Number(strconv.Itoa(humidityInt))
-				ret.Humidity = &h
-			} else {
-				logs.Error("invalid humidity:%v", data[2])
-			}
-		}
-	}
+	humi := json.Number(toString(data[2]))
+	ret.Humidity = &humi
 
-	rssi, ok := data[3].(string)
-	if ok {
-		ret.Rssi = json.Number(rssi)
-	} else {
-		rssiInt, ok := data[3].(int)
-		if ok {
-			ret.Rssi = json.Number(strconv.Itoa(rssiInt))
-		} else {
-			rssiFloat, ok := data[3].(float64)
-			if ok {
-				ret.Rssi = json.Number(strconv.FormatFloat(rssiFloat, 'G', 5, 64))
-			} else {
-				logs.Error("invalid rssi:%v", data[2])
-			}
-		}
-	}
+	rssi := json.Number(toString(data[3]))
+	ret.Rssi = rssi
 
-	power, ok := data[8].(string)
-	if ok {
-		ret.Power = power
-	} else {
-		powerInt, ok := data[8].(int)
-		if ok {
-			ret.Power = strconv.Itoa(powerInt)
-		} else {
-			powerFloat, ok := data[8].(float64)
-			if ok {
-				ret.Power = strconv.FormatFloat(powerFloat, 'G', 5, 64)
-			} else {
-				logs.Error("invalid power:%v", data[8])
-			}
-		}
-	}
+	temp := json.Number(toString(data[4]))
+	ret.Temperature = &temp
 
-	temp, ok := data[4].(string)
-	if ok {
-		h := json.Number(temp)
-		ret.Temperature = &h
-	} else {
-		tempFloat, ok := data[4].(float64)
-		if ok {
-			h := json.Number(strconv.FormatFloat(tempFloat, 'G', 5, 64))
-			ret.Temperature = &h
-		} else {
-			tempInt, ok := data[4].(int)
-			if ok {
-				h := json.Number(strconv.Itoa(tempInt))
-				ret.Temperature = &h
-			} else {
-				logs.Error("invalid temper:%v", data[4])
-			}
-		}
-	}
+	power := toString(data[8])
+	ret.Power = power
+
 	thingName, _ := data[5].(string)
 	thingSegs := strings.Split(thingName, ":")
 	ret.Thing = thingSegs[0]
@@ -142,40 +105,11 @@ func getOneBroadcastData(data []interface{}) *OutData {
 	ret.Timestamp, _ = data[0].(string)
 	ret.Device, _ = data[1].(string)
 
-	rso := data[2]
-	rssi, ok := rso.(string)
-	if ok {
-		ret.Rssi = json.Number(rssi)
-	} else {
-		rssiInt, ok := rso.(int)
-		if ok {
-			ret.Rssi = json.Number(strconv.Itoa(rssiInt))
-		} else {
-			rssiFloat, ok := rso.(float64)
-			if ok {
-				ret.Rssi = json.Number(strconv.FormatFloat(rssiFloat, 'G', 5, 64))
-			} else {
-				logs.Error("invalid rssi:%v", rso)
-			}
-		}
-	}
+	rssi := json.Number(toString(data[2]))
+	ret.Rssi = rssi
 
-	power, ok := data[8].(string)
-	if ok {
-		ret.Power = power
-	} else {
-		powerInt, ok := data[8].(int)
-		if ok {
-			ret.Power = strconv.Itoa(powerInt)
-		} else {
-			powerFloat, ok := data[8].(float64)
-			if ok {
-				ret.Power = strconv.FormatFloat(powerFloat, 'G', 5, 64)
-			} else {
-				logs.Error("invalid rssi:%v", data[2])
-			}
-		}
-	}
+	power := toString(data[8])
+	ret.Power = power
 
 	thingName, _ := data[3].(string)
 	thingSegs := strings.Split(thingName, ":")
