@@ -56,6 +56,8 @@ type OutData struct {
 	Data        *string      `json:"data,omitempty"`
 }
 
+type GroupData []interface{}
+
 type OutDataList struct {
 	Datas []*OutData `json:"datas"`
 	Count int        `json:"count"`
@@ -88,6 +90,8 @@ const (
 	columnDeviceName  = "device_name"
 	columnPower       = "power"
 	columnData        = "data"
+
+	columnMean = "mean"
 )
 
 func InitFlux() {
@@ -234,6 +238,43 @@ func GetLatest(table string, thing, device, projectId string) (data *OutData, er
 	}
 
 	return nil, response.Err
+}
+
+func GetGroupDataByTime(measurement string, thing, startAt, endAt, device, projectId, timeInterval string) (datas [][]interface{}, err error) {
+	// startAt, endAt like '2019-08-17T06:40:27.995Z'
+	if measurement != columnHumidity && measurement != columnTemperature {
+		return nil, fmt.Errorf("invalid measurement %s", measurement)
+	}
+
+	cmd := fmt.Sprintf("select mean(%s) from temperature where device='%s' and project_id='%s'",
+		measurement, device, projectId)
+	tail := fmt.Sprintf(" and time >= '%s' and time < '%s' GROUP BY time(%s) fill(linear)", startAt, endAt, timeInterval)
+	if len(thing) > 0 {
+		cmd = cmd + fmt.Sprintf(" and thing='%s'", thing)
+	}
+	cmd = cmd + tail
+	q := client.Query{
+		Command:  cmd,
+		Database: dbName,
+	}
+	logs.Debug("%s", q.Command)
+	response, err := influx.c.Query(q)
+	if err != nil {
+		return nil, err
+	}
+	retList := make([][]interface{}, 0)
+	for _, v := range response.Results {
+		if len(v.Series) == 0 {
+			logs.Warn("series is 0")
+			continue
+		}
+		logs.Debug("%v", v.Series[0].Values)
+		for _, data := range v.Series[0].Values {
+			retList = append(retList, data)
+		}
+	}
+
+	return retList, nil
 }
 
 func GetDataByTime(table string, thing, startAt, endAt, device, projectId string) (datas []*OutData, err error) {

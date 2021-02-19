@@ -18,6 +18,12 @@ type InnerThresh struct {
 	HumidityMax    *float64 `json:"humidity_max"`
 }
 
+type GroupData struct {
+	Values      [][]interface{} `json:"values"`
+	Measurement string          `json:"measurement"`
+	Count       int           `json:"count"`
+}
+
 type DeviceData struct {
 	ProjectId   string       `json:"project_id"`
 	Thing       string       `json:"thing"`
@@ -143,6 +149,50 @@ func GetDeviceData(w http.ResponseWriter, req *http.Request, ps map[string]strin
 	list := influxdb.OutDataList{
 		Datas: datas,
 		Count: len(datas),
+	}
+	body, err := json.Marshal(list)
+	if err != nil {
+		logs.Error("Invalid data. err:%s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(err.Error()))
+		return
+	}
+	_, _ = w.Write(body)
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+}
+
+func GetGroupData(w http.ResponseWriter, req *http.Request, ps map[string]string) {
+	device := ps["device"]
+	projectId := ps["projectId"]
+	startAt := req.URL.Query().Get("startAt")
+	endAt := req.URL.Query().Get("endAt")
+	interval := req.URL.Query().Get("interval")
+	measurement := req.URL.Query().Get("measurement")
+	// startAt, endAt like '2019-08-17T06:40:27.995Z'
+	var tEnd time.Time
+	tStart, err := time.Parse(time.RFC3339, startAt)
+	if err == nil {
+		tEnd, err = time.Parse(time.RFC3339, endAt)
+	}
+	if err != nil || tEnd.Before(tStart) {
+		strErr := fmt.Sprintf("Invalid time params, startAt:%s, endAt:%s.", startAt, endAt)
+		logs.Error(strErr)
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(strErr))
+		return
+	}
+	datas, err := influxdb.GetGroupDataByTime(measurement, "", startAt, endAt, device, projectId, interval)
+	if err != nil {
+		logs.Error("Invalid data. err:%s", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(err.Error()))
+		return
+	}
+	list := GroupData{
+		Values:      datas,
+		Measurement: measurement,
+		Count:       len(datas),
 	}
 	body, err := json.Marshal(list)
 	if err != nil {

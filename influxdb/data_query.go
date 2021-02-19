@@ -8,6 +8,11 @@ import (
 	"strings"
 )
 
+var groupColumns = []string{
+	columnTime,
+	columnMean,
+}
+
 var sensorColumns = []string{
 	columnTime,
 	columnDevice,
@@ -68,6 +73,16 @@ func toString(val interface{}) string {
 		logs.Error("unknown data type, %v", reflect.TypeOf(val))
 		return ""
 	}
+}
+
+func getOneGroupData(data []interface{}) *GroupData {
+	if len(data) < len(groupColumns) {
+		logs.Warn("columns less %d", len(groupColumns) )
+		return nil
+	}
+	ret := GroupData{}
+	ret.Data = data
+	return &ret
 }
 
 func getOneSensorData(data []interface{}) *OutData {
