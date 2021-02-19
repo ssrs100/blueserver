@@ -46,6 +46,9 @@ func init() {
 
 func toString(val interface{}) string {
 	switch val.(type) {
+	case json.Number:
+		v := val.(json.Number)
+		return string(v)
 	case string:
 		logs.Debug("this is string, %v", val)
 		return val.(string)
