@@ -89,7 +89,7 @@ func getOneSensorData(data []interface{}) *OutData {
 	ret.Temperature = &temp
 
 	power := toString(data[8])
-	ret.Power = power
+	ret.Power = power + "%"
 
 	thingName, _ := data[5].(string)
 	thingSegs := strings.Split(thingName, ":")
@@ -112,7 +112,7 @@ func getOneBroadcastData(data []interface{}) *OutData {
 	ret.Rssi = rssi
 
 	power := toString(data[8])
-	ret.Power = power
+	ret.Power = power + "%"
 
 	thingName, _ := data[3].(string)
 	thingSegs := strings.Split(thingName, ":")
