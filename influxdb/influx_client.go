@@ -136,6 +136,7 @@ func InsertSensorData(table string, dataList []*RecordData) error {
 		}
 		pts = append(pts, p)
 	}
+	logs.Info("write sensor data:%v", pts)
 	bps := client.BatchPoints{
 		Points:          pts,
 		Database:        dbName,
@@ -147,6 +148,8 @@ func InsertSensorData(table string, dataList []*RecordData) error {
 	}
 	if resp != nil && resp.Err != nil {
 		logs.Error("write err:%v", resp.Err)
+	} else {
+		logs.Info("write success")
 	}
 	return nil
 }
