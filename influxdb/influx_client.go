@@ -141,9 +141,12 @@ func InsertSensorData(table string, dataList []*RecordData) error {
 		Database:        dbName,
 		RetentionPolicy: retention,
 	}
-	_, err := influx.c.Write(bps)
+	resp, err := influx.c.Write(bps)
 	if err != nil {
 		return err
+	}
+	if resp != nil && resp.Err != nil {
+		logs.Error("write err:%v", resp.Err)
 	}
 	return nil
 }
