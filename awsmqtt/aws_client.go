@@ -260,18 +260,29 @@ func (ac *AwsIotClient) transData(data *influxdb.ReportData) *influxdb.RecordDat
 		DataType    : data.DataType,
 		Data        : data.Data,
 	}
-	humFloat, err := strconv.ParseFloat(string(data.Humidity), 64)
-	if err != nil {
-		logs.Error("humi err: %v", err)
-	} else {
-		rd.Humidity = humFloat
+	if data.DataType == common.DataTypeSensor {
+		humFloat, err := strconv.ParseFloat(string(data.Humidity), 64)
+		if err != nil {
+			logs.Error("humi err: %v", err)
+		} else {
+			rd.Humidity = humFloat
+		}
+
+		tempFloat, err := strconv.ParseFloat(string(data.Temperature), 64)
+		if err != nil {
+			logs.Error("temperature err: %v", err)
+		} else {
+			rd.Temperature = tempFloat
+		}
 	}
 
-	tempFloat, err := strconv.ParseFloat(string(data.Temperature), 64)
-	if err != nil {
-		logs.Error("temperature err: %v", err)
-	} else {
-		rd.Temperature = tempFloat
+	if len(data.Power) > 0 {
+		powerFloat, err := strconv.ParseFloat(strings.TrimRight(data.Power, "%"), 64)
+		if err != nil {
+			logs.Error("power err: %v", err)
+		} else {
+			rd.Power = powerFloat
+		}
 	}
 
 	rssiFloat, err := strconv.ParseFloat(string(data.Rssi), 64)
@@ -279,13 +290,6 @@ func (ac *AwsIotClient) transData(data *influxdb.ReportData) *influxdb.RecordDat
 		logs.Error("rssi err: %v", err)
 	} else {
 		rd.Rssi = rssiFloat
-	}
-
-	powerFloat, err := strconv.ParseFloat(strings.TrimRight(data.Power, "%"), 64)
-	if err != nil {
-		logs.Error("power err: %v", err)
-	} else {
-		rd.Power = powerFloat
 	}
 	return &rd
 }
