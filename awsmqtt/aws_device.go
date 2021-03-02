@@ -161,7 +161,7 @@ func (t *Client) SubscribeForThingReport() (chan *Shadow, error) {
 	shadowChan := make(chan *Shadow)
 	token := t.client.Subscribe(
 		fmt.Sprintf("$aws/things/+/reports"),
-		0,
+		1,
 		func(client mqtt.Client, msg mqtt.Message) {
 			tpc := msg.Topic()
 			thing := tpc[len("$aws/things/") : len(tpc)-len("/reports")]
