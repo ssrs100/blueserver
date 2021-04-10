@@ -37,3 +37,7 @@ func StatusKey(thing string) string {
 func NoticeKey(projectId, key string) string {
 	return "notice_" + projectId + "_" + key
 }
+
+func SessionKey(thing, sessionId string) string {
+	return "session_" + thing + "_" + sessionId
+}

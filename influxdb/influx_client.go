@@ -26,7 +26,9 @@ type ReportData struct {
 }
 
 type ReportDataList struct {
-	Objects []*ReportData `json:"objs"`
+	SessionId string        `json:"sess_id"`
+	Seq       int64         `json:"seq"`
+	Objects   []*ReportData `json:"objs"`
 }
 
 type RecordData struct {

@@ -3,6 +3,7 @@ package awsmqtt
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -38,13 +39,21 @@ type snsSend struct {
 	isClean    bool
 }
 
+type LossInfo struct {
+	Thing    string `json:"-"`
+	Session  string `json:"sess_id"`
+	StartSeq int64  `json:"seq_start"`
+	EndSeq   int64  `json:"seq_start"`
+}
+
 type AwsIotClient struct {
 	reportChan chan *Shadow
 	awsClient  *Client
 	snsClient  *sns.SNS
 	user       *bluedb.User
 
-	snsChan chan *snsSend
+	snsChan  chan *snsSend
+	lossChan chan *LossInfo
 }
 
 type thresh struct {
@@ -148,9 +157,11 @@ func InitAwsClient() {
 			continue
 		}
 		awsIC.snsChan = make(chan *snsSend, 200)
+		awsIC.lossChan = make(chan *LossInfo, 200)
 		go awsIC.startAwsClient(user.Id, stopChan)
 		awsIC.initSns()
 		go awsIC.sendSns()
+		go awsIC.pubLoss()
 		useClientCache[u] = &awsIC
 	}
 	logs.Info("start aws client success")
@@ -205,6 +216,9 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 					logs.Error("err:%s, msg:%s", err.Error(), string(s.Msg))
 					continue
 				}
+				if err := ac.processSession(thing, &rdList); err != nil {
+					continue
+				}
 				if len(rdList.Objects) == 0 {
 					rd := influxdb.ReportData{}
 					if err := json.Unmarshal(s.Msg, &rd); err != nil {
@@ -245,20 +259,61 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 			}
 		case <-stop:
 			close(ac.snsChan)
+			close(ac.lossChan)
 			logs.Info("stopped")
 		}
 	}
 }
 
+func (ac *AwsIotClient) processSession(thing string, data *influxdb.ReportDataList) error {
+	if len(data.SessionId) <= 0 {
+		logs.Debug("thing(%s) no session id", thing)
+		return nil
+	}
+	lastSeqStr := sesscache.Get(common.SessionKey(thing, data.SessionId))
+	if len(lastSeqStr) <= 0 {
+		sesscache.SetWithExpired(common.SessionKey(thing, data.SessionId),
+			strconv.FormatInt(data.Seq, 10), 5*time.Minute)
+		return nil
+	}
+	lastReq, err := strconv.ParseInt(lastSeqStr, 10, 64)
+	if err != nil {
+		logs.Error("last req(%s/%s) is invalid:%s", thing, data.SessionId, lastSeqStr)
+		sesscache.SetWithExpired(common.SessionKey(thing, data.SessionId),
+			strconv.FormatInt(data.Seq, 10), 5*time.Minute)
+		return nil
+	}
+	if data.Seq <= lastReq {
+		logs.Info("seq(%d) is less than last req:%d, ignore it", data.Seq, lastReq)
+		sesscache.TouchWithExpired(common.SessionKey(thing, data.SessionId), 5*time.Minute)
+		return errors.New("req is less than last req")
+	} else if data.Seq == lastReq+1 {
+		logs.Debug("thing(%s) match req", thing)
+	} else if data.Seq > lastReq+1 {
+		loss := LossInfo{
+			Thing: thing,
+			Session: data.SessionId,
+			StartSeq: lastReq + 1,
+			EndSeq: data.Seq - 1,
+		}
+		ac.lossChan <- &loss
+	} else {
+		logs.Error("unknown case, req:%d, lastReq:%d", data.Seq, lastReq)
+	}
+	sesscache.SetWithExpired(common.SessionKey(thing, data.SessionId),
+		strconv.FormatInt(data.Seq, 10), 5*time.Minute)
+	return nil
+}
+
 func (ac *AwsIotClient) transData(data *influxdb.ReportData) *influxdb.RecordData {
 	rd := influxdb.RecordData{
-		ProjectId   : data.ProjectId,
-		Device      : data.Device,
-		Thing       : data.Thing,
-		Timestamp   : data.Timestamp,
-		DeviceName  : data.DeviceName,
-		DataType    : data.DataType,
-		Data        : data.Data,
+		ProjectId:  data.ProjectId,
+		Device:     data.Device,
+		Thing:      data.Thing,
+		Timestamp:  data.Timestamp,
+		DeviceName: data.DeviceName,
+		DataType:   data.DataType,
+		Data:       data.Data,
 	}
 	if data.DataType == common.DataTypeSensor {
 		humFloat, err := strconv.ParseFloat(string(data.Humidity), 64)
@@ -365,7 +420,27 @@ func (ac *AwsIotClient) sendSns() {
 			ac.sendNotifyMsg(cause, send.key, send.data)
 		}
 	}
+}
 
+func (ac *AwsIotClient) pubLoss() {
+	for {
+		loss, opened := <-ac.lossChan
+		if !opened {
+			logs.Info("loss chan closed")
+			return
+		}
+		logs.Info("pub loss data:(thing:%s,start:%d,end:%d)", loss.Thing, loss.StartSeq, loss.EndSeq)
+		topic := "$aws/things/" + loss.Thing + "/loss"
+		datas, err := json.Marshal(loss)
+		if err != nil {
+			logs.Error("marshal fail, %v", err)
+			return
+		}
+		res := ac.awsClient.client.Publish(topic, 0, false, datas)
+		if res.WaitTimeout(time.Second*5) && res.Error() != nil {
+			logs.Error("pub loss data fail, %s", res.Error())
+		}
+	}
 }
 
 func (ac *AwsIotClient) sendNotifyMsg(cause, key string, data *influxdb.RecordData) {
