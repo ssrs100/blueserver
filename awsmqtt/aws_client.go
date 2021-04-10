@@ -285,7 +285,7 @@ func (ac *AwsIotClient) processSession(thing string, data *influxdb.ReportDataLi
 		return nil
 	}
 	if data.Seq <= lastReq {
-		logs.Info("seq(%d) is less than last req:%d, ignore it", data.Seq, lastReq)
+		logs.Info("seq(%d) is less than or equal last req:%d, ignore it", data.Seq, lastReq)
 		sesscache.TouchWithExpired(common.SessionKey(thing, data.SessionId), 5*time.Minute)
 		return errors.New("req is less than last req")
 	} else if data.Seq == lastReq+1 {
