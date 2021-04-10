@@ -266,6 +266,7 @@ func (ac *AwsIotClient) startAwsClient(projectId string, stop chan interface{}) 
 }
 
 func (ac *AwsIotClient) processSession(thing string, data *influxdb.ReportDataList) error {
+	logs.Debug("%s/%v", thing, *data)
 	if len(data.SessionId) <= 0 {
 		logs.Debug("thing(%s) no session id", thing)
 		return nil
