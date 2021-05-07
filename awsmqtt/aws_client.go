@@ -42,8 +42,8 @@ type snsSend struct {
 type LossInfo struct {
 	Thing    string `json:"-"`
 	Session  string `json:"sess_id"`
-	StartSeq int64  `json:"seq_start"`
-	EndSeq   int64  `json:"seq_start"`
+	StartSeq json.Number  `json:"seq_start"`
+	EndSeq   json.Number  `json:"seq_start"`
 }
 
 type AwsIotClient struct {
@@ -294,8 +294,8 @@ func (ac *AwsIotClient) processSession(thing string, data *influxdb.ReportDataLi
 		loss := LossInfo{
 			Thing: thing,
 			Session: data.SessionId,
-			StartSeq: lastReq + 1,
-			EndSeq: data.Seq - 1,
+			StartSeq: json.Number(strconv.FormatInt(lastReq + 1, 10)),
+			EndSeq: json.Number(strconv.FormatInt(data.Seq - 1, 10)),
 		}
 		ac.lossChan <- &loss
 	} else {
