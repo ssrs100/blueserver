@@ -42,8 +42,8 @@ type snsSend struct {
 type LossInfo struct {
 	Thing    string `json:"-"`
 	Session  string `json:"sess_id"`
-	StartSeq json.Number  `json:"seq_start"`
-	EndSeq   json.Number  `json:"seq_start"`
+	StartSeq int64  `json:"seq_start"`
+	EndSeq   int64  `json:"seq_end"`
 }
 
 type AwsIotClient struct {
@@ -292,10 +292,10 @@ func (ac *AwsIotClient) processSession(thing string, data *influxdb.ReportDataLi
 		logs.Debug("thing(%s) match req", thing)
 	} else if data.Seq > lastReq+1 {
 		loss := LossInfo{
-			Thing: thing,
-			Session: data.SessionId,
-			StartSeq: json.Number(strconv.FormatInt(lastReq + 1, 10)),
-			EndSeq: json.Number(strconv.FormatInt(data.Seq - 1, 10)),
+			Thing:    thing,
+			Session:  data.SessionId,
+			StartSeq: lastReq + 1,
+			EndSeq:   data.Seq - 1,
 		}
 		ac.lossChan <- &loss
 	} else {
