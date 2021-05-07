@@ -437,6 +437,7 @@ func (ac *AwsIotClient) pubLoss() {
 			logs.Error("marshal fail, %v", err)
 			return
 		}
+		logs.Debug("pub loss data:%s", string(datas))
 		res := ac.awsClient.client.Publish(topic, 0, false, datas)
 		if res.WaitTimeout(time.Second*5) && res.Error() != nil {
 			logs.Error("pub loss data fail, %s", res.Error())
