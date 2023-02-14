@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/astaxie/beego v1.12.1
-	github.com/aws/aws-sdk-go v1.30.29
+	github.com/aws/aws-sdk-go v1.34.0
 	github.com/dimfeld/httptreemux v5.0.1+incompatible
 	github.com/eclipse/paho.mqtt.golang v1.2.0
 	github.com/fernet/fernet-go v0.0.0-20191111064656-eff2850e6001
@@ -18,5 +18,4 @@ require (
 	github.com/onsi/gomega v1.10.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/satori/go.uuid v1.2.0
-	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
 )
